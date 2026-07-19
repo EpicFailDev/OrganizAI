@@ -1,0 +1,35 @@
+name: mobile
+description: "OrganizAI mobile app developed in Flutter for family financial control."
+version: 1.0.0+1
+
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Supabase Integration
+  supabase_flutter: ^2.6.0
+  
+  # Icons & UI elements
+  cupertino_icons: ^1.0.6
+  
+  # Charts
+  fl_chart: ^0.66.0
+  
+  # Image selection for receipts
+  image_picker: ^1.0.7
+  
+  # Formats
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
