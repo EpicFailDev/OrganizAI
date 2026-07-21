@@ -403,11 +403,27 @@ function App() {
               />
             )}
 
-            {view === 'orcamentos' && <Orcamentos />}
-            {view === 'metas' && <Metas />}
-            {view === 'planejamento' && <Planejamento />}
-            {view === 'relatorios' && <Relatorios />}
-            {view === 'calendario' && <Calendario />}
+            {view === 'orcamentos' && (
+              <Orcamentos familyId={familyId || ''} categories={categories} transactions={transactions} />
+            )}
+            {view === 'metas' && (
+              <Metas familyId={familyId || ''} />
+            )}
+            {view === 'planejamento' && (
+              <Planejamento familyId={familyId || ''} categories={categories} userId={session.user.id} />
+            )}
+            {view === 'relatorios' && (
+              <Relatorios transactions={transactions} categories={categories} />
+            )}
+            {view === 'calendario' && (
+              <Calendario
+                transactions={transactions}
+                categories={categories}
+                familyId={familyId || ''}
+                userId={session.user.id}
+                onRefresh={fetchFinancialData}
+              />
+            )}
           </>
         )}
       </main>
