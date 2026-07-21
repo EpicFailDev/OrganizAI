@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-import { Auth } from './components/Auth';
+import { ProfileSelector } from './components/ProfileSelector';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { TransactionsList } from './components/TransactionsList';
@@ -229,7 +229,7 @@ function App() {
   }
 
   if (!session) {
-    return <Auth onAuthSuccess={() => {}} />;
+    return <ProfileSelector onAuthSuccess={() => {}} />;
   }
 
   return (

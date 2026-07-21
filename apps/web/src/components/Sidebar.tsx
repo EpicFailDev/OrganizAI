@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >
           <LogOut size={16} />
-          Sair da Conta
+          Trocar de Perfil
         </button>
       </aside>
 
