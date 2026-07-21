@@ -11,6 +11,7 @@ import 'transactions_tab.dart';
 import 'categories_tab.dart';
 import 'family_tab.dart';
 import 'add_transaction_screen.dart';
+import 'scan_receipt_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -118,6 +119,91 @@ class _FamilyShell extends ConsumerStatefulWidget {
 class _FamilyShellState extends ConsumerState<_FamilyShell> {
   int _currentIndex = 0;
 
+  void _showAddOptions(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Adicionar',
+                style: AppTextStyles.headlineMedium,
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryMuted,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                ),
+                title: const Text('Lançamento Manual'),
+                subtitle: const Text('Adicionar receita ou despesa'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AddTransactionScreen(),
+                    ),
+                  );
+                  if (result == true) {
+                    ref.invalidate(transactionProvider);
+                  }
+                },
+              ),
+              const Divider(color: AppColors.surfaceBorder),
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.expenseBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.document_scanner_outlined, color: AppColors.expense),
+                ),
+                title: const Text('Escanear Nota Fiscal'),
+                subtitle: const Text('Escaneie e adicione itens automaticamente'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ScanReceiptScreen(),
+                    ),
+                  );
+                  if (result == true) {
+                    ref.invalidate(transactionProvider);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const tabs = [
@@ -181,17 +267,7 @@ class _FamilyShellState extends ConsumerState<_FamilyShell> {
           ? FloatingActionButton(
               backgroundColor: AppColors.primary,
               elevation: 2,
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AddTransactionScreen(),
-                  ),
-                );
-                if (result == true) {
-                  ref.invalidate(transactionProvider);
-                }
-              },
+              onPressed: () => _showAddOptions(context, ref),
               child: const Icon(Icons.add, color: AppColors.black, size: 28),
             )
           : null,

@@ -13,6 +13,8 @@ class TransactionTile extends StatelessWidget {
   final VoidCallback? onReceiptTap;
   final VoidCallback? onDeleteTap;
   final bool showReceipt;
+  final bool hasReceiptItems;
+  final VoidCallback? onReceiptItemsTap;
 
   const TransactionTile({
     super.key,
@@ -24,6 +26,8 @@ class TransactionTile extends StatelessWidget {
     this.onReceiptTap,
     this.onDeleteTap,
     this.showReceipt = false,
+    this.hasReceiptItems = false,
+    this.onReceiptItemsTap,
   });
 
   @override
@@ -88,6 +92,19 @@ class TransactionTile extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (hasReceiptItems)
+                        GestureDetector(
+                          onTap: onReceiptItemsTap,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryMuted,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Icon(Icons.receipt_long, size: 16, color: AppColors.primary),
+                          ),
+                        ),
+                      if (hasReceiptItems) const SizedBox(width: 4),
                       if (showReceipt)
                         GestureDetector(
                           onTap: onReceiptTap,

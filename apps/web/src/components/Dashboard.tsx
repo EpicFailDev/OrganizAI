@@ -43,12 +43,14 @@ interface DashboardProps {
   transactions: Transaction[];
   profileName?: string;
   familyMembers?: string[];
+  onNavigate?: (view: string) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ 
-  transactions, 
+export const Dashboard: React.FC<DashboardProps> = ({
+  transactions,
   profileName,
-  familyMembers = []
+  familyMembers = [],
+  onNavigate
 }) => {
   const name = profileName || 'Usuário';
 
@@ -275,7 +277,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
-          }}>
+          }}
+            onClick={() => onNavigate?.('dashboard')}
+          >
             <Bell size={18} color="var(--text-secondary)" />
             <span style={{
               position: 'absolute',
@@ -294,7 +298,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             alignItems: 'center',
             gap: '0.6rem',
             cursor: 'pointer'
-          }}>
+          }}
+            onClick={() => onNavigate?.('family')}
+          >
             <div style={{
               width: '34px',
               height: '34px',
@@ -333,7 +339,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           alignItems: 'center',
           gap: '0.5rem',
           cursor: 'pointer'
-        }}>
+        }}
+          onClick={() => onNavigate?.('calendario')}
+        >
           <span>01/05/2024 - 31/05/2024</span>
           <Calendar size={14} />
         </div>
@@ -342,7 +350,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Four KPI Cards Row */}
       <div className="dashboard-kpis">
         {/* 1. Saldo Total - Green card */}
-        <div className="kpi-card-mock saldo-total">
+        <div className="kpi-card-mock saldo-total" onClick={() => onNavigate?.('transactions')} style={{ cursor: 'pointer' }}>
           <div className="kpi-label">
             <span>Saldo Total</span>
             <div style={{ backgroundColor: 'rgba(255,255,255,0.15)', padding: '0.35rem', borderRadius: '50%' }}>
@@ -364,7 +372,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* 2. Total de Entradas */}
-        <div className="kpi-card-mock">
+        <div className="kpi-card-mock" onClick={() => onNavigate?.('entradas')} style={{ cursor: 'pointer' }}>
           <div className="kpi-label">
             <span>Total de Entradas</span>
             <div style={{ backgroundColor: 'var(--color-income-bg)', padding: '0.35rem', borderRadius: '50%' }}>
@@ -385,7 +393,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* 3. Total de Saídas */}
-        <div className="kpi-card-mock">
+        <div className="kpi-card-mock" onClick={() => onNavigate?.('saidas')} style={{ cursor: 'pointer' }}>
           <div className="kpi-label">
             <span>Total de Saídas</span>
             <div style={{ backgroundColor: 'var(--color-expense-bg)', padding: '0.35rem', borderRadius: '50%' }}>
@@ -406,7 +414,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* 4. Meta do mês */}
-        <div className="kpi-card-mock">
+        <div className="kpi-card-mock" onClick={() => onNavigate?.('metas')} style={{ cursor: 'pointer' }}>
           <div className="kpi-label">
             <span>Meta do mês</span>
             <div style={{ backgroundColor: 'var(--color-meta-bg)', padding: '0.35rem', borderRadius: '50%' }}>
@@ -449,7 +457,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               color: '#fff',
               cursor: 'pointer',
               fontWeight: '600'
-            }}>
+            }}
+              onClick={() => onNavigate?.('relatorios')}
+            >
               <span>Este mês</span>
               <ChevronDown size={14} />
             </div>
@@ -517,7 +527,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div>
               <h3 className="card-title-mock">Distribuição de Gastos</h3>
             </div>
-            <div style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.25rem' }}>⋯</div>
+            <div style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.25rem' }}
+              onClick={() => onNavigate?.('relatorios')}
+            >⋯</div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '1rem' }}>
@@ -559,7 +571,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {donutChartData.map((item, idx) => {
                 const percentage = totalExpenseSum > 0 ? Math.round((item.value / totalExpenseSum) * 100) : 0;
                 return (
-                  <div className="chart-legend-row" key={idx}>
+                  <div className="chart-legend-row" key={idx}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => onNavigate?.('transactions')}
+                  >
                     <span className="chart-legend-label">
                       <span className="chart-legend-dot" style={{ backgroundColor: item.color, color: item.color }} />
                       {item.name}
@@ -581,14 +596,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div>
               <h3 className="card-title-mock">Contas por Categoria</h3>
             </div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}>
+            <span
+              style={{ fontSize: '0.78rem', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => onNavigate?.('transactions')}
+            >
               Ver todas
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1 }}>
             {categoryAccounts.map((account, idx) => (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', cursor: 'pointer' }}
+                onClick={() => onNavigate?.('transactions')}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.88rem', fontWeight: 600 }}>
                   <span style={{ color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{
@@ -633,15 +653,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div>
               <h3 className="card-title-mock">Últimas Transações</h3>
             </div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}>
+            <span
+              style={{ fontSize: '0.78rem', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => onNavigate?.('transactions')}
+            >
               Ver todas
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', flex: 1 }}>
             {recentList.map((t) => (
-              <div 
-                key={t.id} 
+              <div
+                key={t.id}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -650,8 +673,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: 'rgba(255, 255, 255, 0.01)',
                   border: '1px solid var(--border-color)',
-                  transition: 'all var(--transition-fast)'
+                  transition: 'all var(--transition-fast)',
+                  cursor: 'pointer'
                 }}
+                onClick={() => onNavigate?.('transactions')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{

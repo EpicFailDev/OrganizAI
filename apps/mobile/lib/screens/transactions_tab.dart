@@ -10,6 +10,8 @@ import '../widgets/transaction_tile.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/skeleton_loader.dart';
 import '../services/storage_service.dart';
+import '../services/receipt_service.dart';
+import 'receipt_detail_screen.dart';
 
 class TransactionsTab extends ConsumerStatefulWidget {
   const TransactionsTab({super.key});
@@ -131,15 +133,51 @@ class _TransactionsTabState extends ConsumerState<TransactionsTab> {
   }
 }
 
-class _TransactionListView extends StatelessWidget {
+class _TransactionListView extends StatefulWidget {
   final List<AppTransaction> transactions;
 
   const _TransactionListView({required this.transactions});
 
   @override
+  State<_TransactionListView> createState() => _TransactionListViewState();
+}
+
+class _TransactionListViewState extends State<_TransactionListView> {
+  final _receiptService = ReceiptService();
+  Map<String, bool> _receiptItemsMap = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReceiptItemsInfo();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TransactionListView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.transactions != widget.transactions) {
+      _loadReceiptItemsInfo();
+    }
+  }
+
+  Future<void> _loadReceiptItemsInfo() async {
+    final ids = widget.transactions.map((t) => t.id).toList();
+    if (ids.isEmpty) return;
+
+    final map = <String, bool>{};
+    for (final id in ids) {
+      final items = await _receiptService.getReceiptItems(id);
+      map[id] = items.isNotEmpty;
+    }
+    if (mounted) {
+      setState(() => _receiptItemsMap = map);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final grouped = <String, List<AppTransaction>>{};
-    for (final t in transactions) {
+    for (final t in widget.transactions) {
       grouped.putIfAbsent(t.monthKey, () => []).add(t);
     }
     final months = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
@@ -181,8 +219,12 @@ class _TransactionListView extends StatelessWidget {
               amount: t.amount,
               isIncome: t.isIncome,
               showReceipt: t.attachmentUrl != null,
+              hasReceiptItems: _receiptItemsMap[t.id] ?? false,
               onReceiptTap: t.attachmentUrl != null
                   ? () => _showReceipt(context, t.attachmentUrl!)
+                  : null,
+              onReceiptItemsTap: (_receiptItemsMap[t.id] ?? false)
+                  ? () => _showReceiptItems(context, t)
                   : null,
               onDeleteTap: () => _confirmDelete(context, t),
             )),
@@ -234,6 +276,15 @@ class _TransactionListView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showReceiptItems(BuildContext context, AppTransaction transaction) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReceiptDetailScreen(transaction: transaction),
       ),
     );
   }

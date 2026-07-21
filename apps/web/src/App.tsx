@@ -7,6 +7,12 @@ import { TransactionsList } from './components/TransactionsList';
 import { CategoryManager } from './components/CategoryManager';
 import { FamilySettings } from './components/FamilySettings';
 import { AddTransactionModal } from './components/AddTransactionModal';
+import { Orcamentos } from './components/Orcamentos';
+import { Metas } from './components/Metas';
+import { Planejamento } from './components/Planejamento';
+import { Relatorios } from './components/Relatorios';
+import { Calendario } from './components/Calendario';
+import { Uber99Dashboard } from './components/Uber99Dashboard';
 import { Loader2, Users, Menu } from 'lucide-react';
 
 interface Profile {
@@ -37,6 +43,17 @@ interface Transaction {
   categories?: { name: string; color?: string };
   subcategories?: { name: string };
   profiles?: { display_name: string };
+  receipt_items?: ReceiptItem[];
+}
+
+interface ReceiptItem {
+  id: string;
+  transaction_id: string;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  line_number?: number;
 }
 
 function App() {
@@ -142,7 +159,33 @@ function App() {
           .order('date', { ascending: false });
 
         if (transError) throw transError;
-        setTransactions(transData || []);
+
+        // Fetch receipt items for all transactions
+        const txIds = (transData || []).map(t => t.id);
+        let receiptItemsMap: Record<string, ReceiptItem[]> = {};
+        if (txIds.length > 0) {
+          const { data: receiptData } = await supabase
+            .from('receipt_items')
+            .select('*')
+            .in('transaction_id', txIds)
+            .order('line_number', { ascending: true });
+
+          if (receiptData) {
+            for (const item of receiptData) {
+              const txId = item.transaction_id;
+              if (!receiptItemsMap[txId]) receiptItemsMap[txId] = [];
+              receiptItemsMap[txId].push(item);
+            }
+          }
+        }
+
+        // Attach receipt items to transactions
+        const enrichedTrans = (transData || []).map(t => ({
+          ...t,
+          receipt_items: receiptItemsMap[t.id] || [],
+        }));
+
+        setTransactions(enrichedTrans);
       } else {
         setTransactions([]);
       }
@@ -315,26 +358,30 @@ function App() {
             )}
 
             {view === 'dashboard' && (
-              <Dashboard 
-                transactions={transactions} 
+              <Dashboard
+                transactions={transactions}
                 profileName={profile?.display_name}
                 familyMembers={familyMembers}
+                onNavigate={handleViewChange}
               />
             )}
 
-            {view.startsWith('transactions') && (
+            {view === 'transactions-uber99' && (
+              <Uber99Dashboard transactions={transactions} />
+            )}
+
+            {view.startsWith('transactions') && view !== 'transactions-uber99' && (
               <TransactionsList
-                key={view} // Remount list when preset switches
+                key={view}
                 transactions={transactions}
                 categories={categories}
                 onDeleteTransaction={handleDeleteTransaction}
                 presetType={
-                  view === 'transactions-entradas' ? 'income' : 
+                  view === 'transactions-entradas' ? 'income' :
                   view === 'transactions-saidas' ? 'expense' : 'all'
                 }
                 presetSearch={
-                  view === 'transactions-salgados' ? 'Salgados' : 
-                  view === 'transactions-uber99' ? 'Uber' : ''
+                  view === 'transactions-salgados' ? 'Salgados' : ''
                 }
               />
             )}
@@ -355,6 +402,12 @@ function App() {
                 onRefreshFamily={handleRefreshFamily}
               />
             )}
+
+            {view === 'orcamentos' && <Orcamentos />}
+            {view === 'metas' && <Metas />}
+            {view === 'planejamento' && <Planejamento />}
+            {view === 'relatorios' && <Relatorios />}
+            {view === 'calendario' && <Calendario />}
           </>
         )}
       </main>

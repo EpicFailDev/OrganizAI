@@ -26,6 +26,9 @@ dependencies:
   # Image selection for receipts
   image_picker: ^1.0.7
 
+  # OCR - Google ML Kit (gratuito, offline)
+  google_mlkit_text_recognition: ^0.14.0
+
   # Formats
   intl: ^0.19.0
 

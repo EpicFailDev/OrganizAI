@@ -21,6 +21,17 @@ interface Transaction {
   categories?: { name: string; color?: string };
   subcategories?: { name: string };
   profiles?: { display_name: string };
+  receipt_items?: ReceiptItem[];
+}
+
+interface ReceiptItem {
+  id: string;
+  transaction_id: string;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  line_number?: number;
 }
 
 interface Category {
@@ -52,6 +63,8 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   
   // Image Viewer State
   const [viewerImage, setViewerImage] = useState<string | null>(null);
+  // Receipt Items Viewer State
+  const [viewerReceiptItems, setViewerReceiptItems] = useState<{ transaction: Transaction; items: ReceiptItem[] } | null>(null);
 
   // Synchronize state when presets change from Sidebar click
   useEffect(() => {
@@ -241,6 +254,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                   <th style={{ textAlign: 'right' }}>Valor</th>
                   <th>Membro</th>
                   <th style={{ textAlign: 'center', width: '80px' }}>Recibo</th>
+                  <th style={{ textAlign: 'center', width: '80px' }}>Itens</th>
                   <th style={{ textAlign: 'center', width: '80px' }}>Ações</th>
                 </tr>
               </thead>
@@ -337,6 +351,35 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                       )}
                     </td>
                     <td style={{ textAlign: 'center' }}>
+                      {t.receipt_items && t.receipt_items.length > 0 ? (
+                        <button
+                          onClick={() => setViewerReceiptItems({ transaction: t, items: t.receipt_items || [] })}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--color-primary)',
+                            cursor: 'pointer',
+                            padding: '0.35rem 0.6rem',
+                            borderRadius: '8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            transition: 'all var(--transition-fast)'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-primary-glow)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.08)'; }}
+                        >
+                          <FileText size={14} />
+                          {t.receipt_items.length}
+                        </button>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>-</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
                       <button
                         onClick={() => {
                           if (window.confirm(`Excluir permanentemente o lançamento "${t.description}"?`)) {
@@ -407,6 +450,95 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
             }}>
               {formatCurrency(totals.balance)}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Items Detail Modal */}
+      {viewerReceiptItems && (
+        <div className="modal-overlay" onClick={() => setViewerReceiptItems(null)}>
+          <div className="glass-card" style={{
+            position: 'relative',
+            maxWidth: '520px',
+            width: '100%',
+            padding: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            boxShadow: 'var(--shadow-lg), 0 0 60px rgba(0,0,0,0.6)'
+          }} onClick={(e) => e.stopPropagation()}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h4 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+                  Itens da Nota Fiscal
+                </h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '0.25rem 0 0 0' }}>
+                  {viewerReceiptItems.transaction.description} &middot; {new Date(viewerReceiptItems.transaction.date).toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+              <button 
+                className="modal-close" 
+                onClick={() => setViewerReceiptItems(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Item</th>
+                    <th style={{ textAlign: 'center', padding: '0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Qtd</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Preço Unit.</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewerReceiptItems.items.map((item) => (
+                    <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '0.6rem 0', color: '#fff', fontSize: '0.88rem', fontWeight: 500 }}>
+                        {item.item_name}
+                      </td>
+                      <td style={{ padding: '0.6rem 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        {item.quantity}
+                      </td>
+                      <td style={{ padding: '0.6rem 0', textAlign: 'right', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        {formatCurrency(Number(item.unit_price))}
+                      </td>
+                      <td style={{ padding: '0.6rem 0', textAlign: 'right', color: 'var(--color-expense)', fontWeight: 700, fontSize: '0.88rem' }}>
+                        {formatCurrency(Number(item.total_price))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              borderTop: '1px solid var(--border-color)', 
+              paddingTop: '0.75rem',
+              marginTop: '0.25rem'
+            }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                Total ({viewerReceiptItems.items.length} {viewerReceiptItems.items.length === 1 ? 'item' : 'itens'})
+              </span>
+              <span style={{ fontSize: '1.15rem', color: 'var(--color-primary)', fontWeight: 800 }}>
+                {formatCurrency(viewerReceiptItems.items.reduce((sum, i) => sum + Number(i.total_price), 0))}
+              </span>
+            </div>
+
+            <button 
+              className="btn-secondary" 
+              style={{ width: '100%', padding: '0.65rem' }}
+              onClick={() => setViewerReceiptItems(null)}
+            >
+              Fechar
+            </button>
           </div>
         </div>
       )}
