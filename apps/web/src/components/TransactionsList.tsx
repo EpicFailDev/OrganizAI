@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
   Trash2, 
   Image as ImageIcon, 
-  Calendar,
   Filter,
   X,
   FileText
@@ -34,21 +33,31 @@ interface TransactionsListProps {
   transactions: Transaction[];
   categories: Category[];
   onDeleteTransaction: (id: string) => Promise<void>;
+  presetType?: 'income' | 'expense' | 'all';
+  presetSearch?: string;
 }
 
 export const TransactionsList: React.FC<TransactionsListProps> = ({
   transactions,
   categories,
-  onDeleteTransaction
+  onDeleteTransaction,
+  presetType = 'all',
+  presetSearch = ''
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(presetSearch);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedType, setSelectedType] = useState('all');
+  const [selectedType, setSelectedType] = useState<'income' | 'expense' | 'all'>(presetType);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
   // Image Viewer State
   const [viewerImage, setViewerImage] = useState<string | null>(null);
+
+  // Synchronize state when presets change from Sidebar click
+  useEffect(() => {
+    setSearchTerm(presetSearch);
+    setSelectedType(presetType);
+  }, [presetSearch, presetType]);
 
   // Filter logic
   const filteredTransactions = useMemo(() => {
@@ -104,21 +113,23 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.03em' }}>
-          Lançamentos
+        <h1 style={{ fontSize: '2.1rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em' }}>
+          Extrato & Lançamentos
         </h1>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Visualize e filtre todas as transações cadastradas
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+          Visualize, filtre, audite e gerencie todas as receitas e despesas registradas
         </p>
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '600' }}>
-          <Filter size={18} /> Filtros de Busca
+      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', fontSize: '0.95rem', fontWeight: '700' }}>
+          <Filter size={18} color="var(--color-primary)" />
+          Filtragem Avançada
         </div>
         
         <div style={{
@@ -128,12 +139,12 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
         }} className="filters-grid">
           {/* Text Search */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={18} style={{ position: 'absolute', left: '0.75rem', color: 'var(--text-muted)' }} />
+            <Search size={18} style={{ position: 'absolute', left: '0.85rem', color: 'var(--text-muted)' }} />
             <input
               type="text"
               className="form-input"
-              style={{ width: '100%', paddingLeft: '2.25rem' }}
-              placeholder="Buscar por descrição, categoria..."
+              style={{ width: '100%', paddingLeft: '2.3rem' }}
+              placeholder="Pesquisar por texto..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -143,7 +154,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
           <select 
             className="form-select"
             value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
+            onChange={(e) => setSelectedType(e.target.value as 'income' | 'expense' | 'all')}
           >
             <option value="all">Todos os tipos</option>
             <option value="income">Entradas (Receitas)</option>
@@ -166,11 +177,11 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
 
           {/* Start Date */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Calendar size={16} style={{ position: 'absolute', right: '0.75rem', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <span style={{ position: 'absolute', left: '0.85rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>De</span>
             <input
               type="date"
               className="form-input"
-              style={{ width: '100%', paddingRight: '2rem' }}
+              style={{ width: '100%', paddingLeft: '2.2rem' }}
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
@@ -178,11 +189,11 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
 
           {/* End Date */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Calendar size={16} style={{ position: 'absolute', right: '0.75rem', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <span style={{ position: 'absolute', left: '0.85rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>Até</span>
             <input
               type="date"
               className="form-input"
-              style={{ width: '100%', paddingRight: '2rem' }}
+              style={{ width: '100%', paddingLeft: '2.2rem' }}
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
@@ -190,7 +201,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
         </div>
 
         {(searchTerm || selectedCategory || selectedType !== 'all' || startDate || endDate) && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
             <button 
               onClick={handleClearFilters}
               style={{
@@ -199,68 +210,70 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                 color: 'var(--color-expense)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.25rem',
+                gap: '0.35rem',
                 fontSize: '0.85rem',
                 cursor: 'pointer',
-                fontWeight: '600'
+                fontWeight: '700'
               }}
             >
-              <X size={14} /> Limpar Filtros
+              <X size={14} /> Limpar Filtros Aplicados
             </button>
           </div>
         )}
       </div>
 
       {/* Spreadsheet / Table */}
-      <div className="glass-card" style={{ padding: 0 }}>
+      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
         {filteredTransactions.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Nenhuma transação encontrada com os filtros selecionados.
+          <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Nenhuma transação localizada com os parâmetros selecionados.
           </div>
         ) : (
           <div className="table-container">
             <table className="modern-table">
               <thead>
                 <tr>
-                  <th>Data</th>
+                  <th style={{ width: '110px' }}>Data</th>
                   <th>Descrição</th>
                   <th>Categoria</th>
                   <th>Subcategoria</th>
                   <th>Tipo</th>
                   <th style={{ textAlign: 'right' }}>Valor</th>
-                  <th>Usuário</th>
-                  <th style={{ textAlign: 'center' }}>Recibo</th>
-                  <th style={{ textAlign: 'center' }}>Ações</th>
+                  <th>Membro</th>
+                  <th style={{ textAlign: 'center', width: '80px' }}>Recibo</th>
+                  <th style={{ textAlign: 'center', width: '80px' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTransactions.map((t) => (
                   <tr key={t.id}>
-                    <td style={{ color: 'var(--text-secondary)' }}>
+                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
                       {new Date(t.date).toLocaleDateString('pt-BR')}
                     </td>
-                    <td style={{ fontWeight: '600', color: '#fff' }}>
+                    <td style={{ fontWeight: '700', color: '#ffffff' }}>
                       {t.description}
                     </td>
                     <td>
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '0.35rem',
+                        gap: '0.45rem',
                         fontSize: '0.85rem',
-                        color: t.categories?.color || '#fff'
+                        fontWeight: '600',
+                        color: t.categories?.color || '#ffffff'
                       }}>
                         <span style={{
                           width: '8px',
                           height: '8px',
                           borderRadius: '50%',
-                          backgroundColor: t.categories?.color || '#9E9E9E'
+                          backgroundColor: t.categories?.color || '#9E9E9E',
+                          boxShadow: `0 0 8px ${t.categories?.color || '#9e9e9e'}`
                         }} />
                         {t.categories?.name}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {t.subcategories?.name || '-'}
+                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      {t.subcategories?.name || <span style={{ color: 'var(--text-muted)' }}>-</span>}
                     </td>
                     <td>
                       <span className={`badge ${t.type === 'income' ? 'badge-income' : 'badge-expense'}`}>
@@ -269,13 +282,33 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                     </td>
                     <td style={{
                       textAlign: 'right',
-                      fontWeight: '700',
+                      fontWeight: '800',
+                      fontSize: '0.95rem',
                       color: t.type === 'income' ? 'var(--color-income)' : 'var(--color-expense)'
                     }}>
                       {t.type === 'income' ? '+' : '-'} {formatCurrency(Number(t.amount))}
                     </td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      {t.profiles?.display_name || 'Usuário'}
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <span style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          {(t.profiles?.display_name || 'U').substring(0, 2).toUpperCase()}
+                        </span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          {t.profiles?.display_name ? t.profiles.display_name.split(' ')[0] : 'Membro'}
+                        </span>
+                      </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       {t.attachment_url ? (
@@ -286,15 +319,18 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                             border: 'none',
                             color: 'var(--color-primary)',
                             cursor: 'pointer',
-                            padding: '0.25rem',
-                            borderRadius: '4px',
+                            padding: '0.35rem',
+                            borderRadius: '50%',
                             display: 'inline-flex',
-                            alignItems: 'center'
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: 'rgba(16, 185, 129, 0.04)',
+                            transition: 'all var(--transition-fast)'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-glow)'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-primary-glow)'; e.currentTarget.style.color = 'var(--color-primary-hover)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.04)'; e.currentTarget.style.color = 'var(--color-primary)'; }}
                         >
-                          <ImageIcon size={18} />
+                          <ImageIcon size={16} />
                         </button>
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>-</span>
@@ -303,7 +339,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                     <td style={{ textAlign: 'center' }}>
                       <button
                         onClick={() => {
-                          if (window.confirm(`Excluir o lançamento "${t.description}"?`)) {
+                          if (window.confirm(`Excluir permanentemente o lançamento "${t.description}"?`)) {
                             onDeleteTransaction(t.id);
                           }
                         }}
@@ -312,15 +348,18 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                           border: 'none',
                           color: 'var(--color-expense)',
                           cursor: 'pointer',
-                          padding: '0.25rem',
-                          borderRadius: '4px',
+                          padding: '0.35rem',
+                          borderRadius: '50%',
                           display: 'inline-flex',
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: 'rgba(244, 63, 94, 0.04)',
+                          transition: 'all var(--transition-fast)'
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-expense-bg)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(244, 63, 94, 0.04)'}
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                       </button>
                     </td>
                   </tr>
@@ -331,36 +370,40 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
         )}
       </div>
 
-      {/* Spreadsheet totals summary */}
+      {/* Spreadsheet totals summary card */}
       {filteredTransactions.length > 0 && (
         <div className="glass-card" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '1.25rem 2rem',
-          backgroundColor: 'rgba(15, 22, 36, 0.8)'
+          padding: '1.5rem 2.5rem',
+          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.6) 0%, rgba(10, 15, 30, 0.8) 100%)',
+          flexWrap: 'wrap',
+          gap: '1.5rem'
         }}>
-          <div style={{ display: 'flex', gap: '2rem' }}>
+          <div style={{ display: 'flex', gap: '3rem', flexWrap: 'wrap' }}>
             <div>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Entradas:</span>
-              <p style={{ color: 'var(--color-income)', fontWeight: '700', fontSize: '1.1rem' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Entradas Filtradas</span>
+              <p style={{ color: 'var(--color-income)', fontWeight: '800', fontSize: '1.25rem', marginTop: '0.15rem' }}>
                 {formatCurrency(totals.income)}
               </p>
             </div>
             <div>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Saídas:</span>
-              <p style={{ color: 'var(--color-expense)', fontWeight: '700', fontSize: '1.1rem' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Saídas Filtradas</span>
+              <p style={{ color: 'var(--color-expense)', fontWeight: '800', fontSize: '1.25rem', marginTop: '0.15rem' }}>
                 {formatCurrency(totals.expense)}
               </p>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Saldo dos Filtros:</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Saldo do Período</span>
             <p style={{
-              color: totals.balance >= 0 ? '#fff' : 'var(--color-expense)',
-              fontWeight: '800',
-              fontSize: '1.35rem',
-              fontFamily: 'var(--font-title)'
+              color: totals.balance >= 0 ? 'var(--color-primary)' : 'var(--color-expense)',
+              fontWeight: '900',
+              fontSize: '1.5rem',
+              fontFamily: 'var(--font-title)',
+              marginTop: '0.15rem',
+              textShadow: totals.balance >= 0 ? '0 0 10px rgba(16,185,129,0.2)' : 'none'
             }}>
               {formatCurrency(totals.balance)}
             </p>
@@ -368,51 +411,76 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
         </div>
       )}
 
-      {/* Image Viewer lightbox */}
+      {/* Image Viewer Lightbox */}
       {viewerImage && (
         <div className="modal-overlay" onClick={() => setViewerImage(null)}>
           <div className="glass-card" style={{
             position: 'relative',
-            maxWidth: '90vw',
-            maxHeight: '90vh',
-            padding: '1rem',
+            maxWidth: '560px',
+            width: '100%',
+            padding: '1.5rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1rem',
-            alignItems: 'center'
+            gap: '1.25rem',
+            alignItems: 'center',
+            boxShadow: 'var(--shadow-lg), 0 0 60px rgba(0,0,0,0.6)'
           }} onClick={(e) => e.stopPropagation()}>
-            <button 
-              className="modal-close" 
-              onClick={() => setViewerImage(null)}
-              style={{ top: '0.5rem', right: '0.5rem' }}
-            >
-              <X size={20} />
-            </button>
-            <h4 style={{ alignSelf: 'flex-start', color: '#fff', fontSize: '1rem' }}>
-              Comprovante / Recibo
-            </h4>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+              <h4 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 700 }}>
+                Comprovante Anexado
+              </h4>
+              <button 
+                className="modal-close" 
+                onClick={() => setViewerImage(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
             <img 
               src={viewerImage} 
-              alt="Comprovante" 
+              alt="Comprovante Financeiro" 
               style={{
-                maxWidth: '100%',
-                maxHeight: '75vh',
-                borderRadius: 'var(--radius-sm)',
-                objectFit: 'contain'
+                width: '100%',
+                maxHeight: '60vh',
+                borderRadius: 'var(--radius-md)',
+                objectFit: 'contain',
+                backgroundColor: 'rgba(0,0,0,0.2)',
+                border: '1px solid var(--border-color)'
               }} 
             />
-            <a 
-              href={viewerImage} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="btn-secondary"
-              style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-            >
-              <FileText size={16} /> Abrir em nova aba
-            </a>
+
+            <div style={{ display: 'flex', gap: '0.5rem', width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+              <a 
+                href={viewerImage} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="btn-primary"
+                style={{ flex: 1, textDecoration: 'none', padding: '0.65rem' }}
+              >
+                <FileText size={16} /> Abrir Link Direto
+              </a>
+              <button 
+                className="btn-secondary" 
+                style={{ flex: 1, padding: '0.65rem' }}
+                onClick={() => setViewerImage(null)}
+              >
+                Fechar Recibo
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Responsive Table Styles */}
+      <style>{`
+        @media (max-width: 768px) {
+          .filters-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -30,7 +30,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
 }) => {
   const [newCatName, setNewCatName] = useState('');
   const [newCatType, setNewCatType] = useState<'income' | 'expense'>('expense');
-  const [newCatColor, setNewCatColor] = useState('#6366f1');
+  const [newCatColor, setNewCatColor] = useState('#10b981');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [newSubName, setNewSubName] = useState('');
   
@@ -116,7 +116,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!window.confirm('Excluir esta categoria? Isso também pode excluir lançamentos vinculados!')) return;
+    if (!window.confirm('Excluir esta categoria? Isso também pode excluir os lançamentos vinculados!')) return;
     try {
       const { error } = await supabase
         .from('categories')
@@ -146,46 +146,48 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.03em' }}>
+        <h1 style={{ fontSize: '2.1rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em' }}>
           Categorias & Subcategorias
         </h1>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Gerencie as classificações das suas receitas e despesas
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+          Gerencie e personalize a estrutura de classificação das suas receitas e despesas familiares
         </p>
       </div>
 
       {errorMsg && (
         <div style={{
-          backgroundColor: 'rgba(244, 63, 94, 0.1)',
-          border: '1px solid rgba(244, 63, 94, 0.3)',
-          borderRadius: 'var(--radius-md)',
+          backgroundColor: 'rgba(244, 63, 94, 0.08)',
+          border: '1px solid rgba(244, 63, 94, 0.2)',
+          borderRadius: 'var(--radius-sm)',
           padding: '0.75rem 1rem',
           color: 'var(--color-expense)',
-          fontSize: '0.85rem'
+          fontSize: '0.85rem',
+          lineHeight: '1.4'
         }}>
-          {errorMsg}
+          ⚠️ {errorMsg}
         </div>
       )}
 
       <div className="grid-2">
-        {/* Left column: Category management */}
+        {/* Left Column - Category management */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Create Category form */}
+          {/* Create Category */}
           <div className="glass-card">
-            <h3 style={{ fontSize: '1.1rem', color: '#fff', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-title)' }}>
+            <h3 style={{ fontSize: '1.15rem', color: '#fff', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-title)' }}>
               <Plus size={18} color="var(--color-primary)" /> Nova Categoria Customizada
             </h3>
 
-            <form onSubmit={handleCreateCategory} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
+            <form onSubmit={handleCreateCategory} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+              <div className="form-group">
                 <label className="form-label">Nome da Categoria</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Ex: Mercado, Presentes..."
+                  placeholder="Ex: Supermercado, Presentes, Pet..."
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
                   required
@@ -193,7 +195,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
               </div>
 
               <div className="grid-2" style={{ gap: '1rem' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
+                <div className="form-group">
                   <label className="form-label">Tipo</label>
                   <select
                     className="form-select"
@@ -205,58 +207,62 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                   </select>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Cor Visual</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div className="form-group">
+                  <label className="form-label">Cor de Identificação</label>
+                  <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
                     <input
                       type="color"
                       className="form-input"
-                      style={{ padding: '0.25rem', width: '45px', height: '40px', cursor: 'pointer' }}
+                      style={{ padding: '0.2rem', width: '48px', height: '40px', cursor: 'pointer' }}
                       value={newCatColor}
                       onChange={(e) => setNewCatColor(e.target.value)}
                     />
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{newCatColor}</span>
+                    <code style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{newCatColor.toUpperCase()}</code>
                   </div>
                 </div>
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loading}>
-                Adicionar Categoria
+              <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '0.5rem', padding: '0.8rem' }} disabled={loading}>
+                Salvar Nova Categoria
               </button>
             </form>
           </div>
 
-          {/* List categories */}
+          {/* List Categories */}
           <div className="glass-card">
-            <h3 style={{ fontSize: '1.1rem', color: '#fff', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-title)' }}>
-              <Tags size={18} color="var(--color-primary)" /> Categorias Ativas
+            <h3 style={{ fontSize: '1.15rem', color: '#fff', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-title)' }}>
+              <Tags size={18} color="var(--color-primary)" /> Categorias Cadastradas
             </h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
               {categories.map(cat => (
                 <div 
                   key={cat.id} 
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'between',
-                    padding: '0.75rem 1rem',
+                    justifyContent: 'space-between',
+                    padding: '0.85rem 1.15rem',
                     borderRadius: 'var(--radius-md)',
                     backgroundColor: 'rgba(255, 255, 255, 0.01)',
                     border: '1px solid var(--border-color)',
+                    transition: 'all var(--transition-fast)'
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
                     <div style={{
                       width: '12px',
                       height: '12px',
                       borderRadius: '50%',
-                      backgroundColor: cat.color || '#9E9E9E'
+                      backgroundColor: cat.color || '#9ca3af',
+                      boxShadow: `0 0 8px ${cat.color || '#9ca3af'}`
                     }} />
                     <div>
-                      <p style={{ fontSize: '0.9rem', fontWeight: '600', color: '#fff' }}>{cat.name}</p>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {cat.type === 'income' ? 'Entrada' : 'Saída'} • {cat.family_id ? 'Customizada' : 'Padrão'}
+                      <p style={{ fontSize: '0.92rem', fontWeight: '700', color: '#ffffff' }}>{cat.name}</p>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                        {cat.type === 'income' ? 'Entrada (Receita)' : 'Saída (Despesa)'} • {cat.family_id ? 'Customizada' : 'Padrão Sistema'}
                       </p>
                     </div>
                   </div>
@@ -269,10 +275,17 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                         border: 'none',
                         color: 'var(--color-expense)',
                         cursor: 'pointer',
-                        padding: '0.25rem'
+                        padding: '0.35rem',
+                        borderRadius: '50%',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(244, 63, 94, 0.03)'
                       }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-expense-bg)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(244, 63, 94, 0.03)'}
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={15} />
                     </button>
                   )}
                 </div>
@@ -281,86 +294,90 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
           </div>
         </div>
 
-        {/* Right column: Subcategory management */}
+        {/* Right Column - Subcategory management */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Create Subcategory */}
           <div className="glass-card">
-            <h3 style={{ fontSize: '1.1rem', color: '#fff', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-title)' }}>
+            <h3 style={{ fontSize: '1.15rem', color: '#fff', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-title)' }}>
               <FolderPlus size={18} color="var(--color-primary)" /> Nova Subcategoria
             </h3>
 
-            <form onSubmit={handleCreateSubcategory} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Categoria Pai</label>
+            <form onSubmit={handleCreateSubcategory} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+              <div className="form-group">
+                <label className="form-label">Categoria Principal Vinculada</label>
                 <select
                   className="form-select"
                   value={selectedCategoryId}
                   onChange={(e) => setSelectedCategoryId(e.target.value)}
                   required
                 >
-                  <option value="">Selecione...</option>
+                  <option value="">Selecione a categoria pai...</option>
                   {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name} ({cat.type === 'income' ? 'Entrada' : 'Saída'})</option>
+                    <option key={cat.id} value={cat.id}>{cat.name} ({cat.type === 'income' ? 'Receita' : 'Despesa'})</option>
                   ))}
                 </select>
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
+              <div className="form-group">
                 <label className="form-label">Nome da Subcategoria</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Ex: Combustível, Delivery, Netflix..."
+                  placeholder="Ex: Gasolina, Cinema, Assinatura TV..."
                   value={newSubName}
                   onChange={(e) => setNewSubName(e.target.value)}
                   required
                 />
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loading || !selectedCategoryId}>
-                Adicionar Subcategoria
+              <button type="submit" className="btn-primary" style={{ width: '100%', marginTop: '0.5rem', padding: '0.8rem' }} disabled={loading || !selectedCategoryId}>
+                Salvar Subcategoria
               </button>
             </form>
           </div>
 
-          {/* List subcategories grouping by category */}
+          {/* List Subcategories Grouped */}
           <div className="glass-card" style={{ flex: 1 }}>
-            <h3 style={{ fontSize: '1.1rem', color: '#fff', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-title)' }}>
-              <Tag size={18} color="var(--color-primary)" /> Subcategorias Ativas
+            <h3 style={{ fontSize: '1.15rem', color: '#fff', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-title)' }}>
+              <Tag size={18} color="var(--color-primary)" /> Estrutura de Subcategorias
             </h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: '400px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.35rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
               {categories.map(cat => {
                 const catSubs = subcategories.filter(s => s.category_id === cat.id);
                 if (catSubs.length === 0) return null;
                 return (
-                  <div key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: cat.color || '#9E9E9E'
+                        backgroundColor: cat.color || '#9ca3af'
                       }} />
-                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         {cat.name}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', paddingLeft: '1rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', paddingLeft: '0.75rem' }}>
                       {catSubs.map(sub => (
                         <div
                           key={sub.id}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.35rem',
-                            padding: '0.35rem 0.6rem',
+                            gap: '0.45rem',
+                            padding: '0.4rem 0.75rem',
                             borderRadius: 'var(--radius-sm)',
-                            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.02)',
                             border: '1px solid var(--border-color)',
-                            fontSize: '0.8rem',
-                            color: '#fff'
+                            fontSize: '0.82rem',
+                            color: '#ffffff',
+                            fontWeight: 500,
+                            transition: 'all var(--transition-fast)'
                           }}
+                          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
+                          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
                         >
                           {sub.name}
                           <button
@@ -370,14 +387,16 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
                               border: 'none',
                               color: 'var(--color-expense)',
                               cursor: 'pointer',
-                              display: 'flex',
-                              padding: '0.1rem',
-                              borderRadius: '2px'
+                              display: 'inline-flex',
+                              padding: '0.15rem',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(244, 63, 94, 0.03)',
+                              transition: 'all var(--transition-fast)'
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-expense-bg)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(244, 63, 94, 0.03)'}
                           >
-                            <X size={12} />
+                            <X size={11} />
                           </button>
                         </div>
                       ))}

@@ -7,7 +7,7 @@ import { TransactionsList } from './components/TransactionsList';
 import { CategoryManager } from './components/CategoryManager';
 import { FamilySettings } from './components/FamilySettings';
 import { AddTransactionModal } from './components/AddTransactionModal';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, Users, Menu } from 'lucide-react';
 
 interface Profile {
   id: string;
@@ -47,6 +47,7 @@ function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [familyName, setFamilyName] = useState('');
+  const [familyMembers, setFamilyMembers] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [view, setView] = useState('dashboard');
@@ -54,6 +55,7 @@ function App() {
   // Modals & UI States
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // 1. Auth Subscription
   useEffect(() => {
@@ -95,9 +97,21 @@ function App() {
       if (memData) {
         setFamilyId(memData.family_id);
         setFamilyName(memData.family_groups?.name || 'Minha Família');
+
+        // Fetch all members names in the family
+        const { data: allMembers, error: allMembersError } = await supabase
+          .from('family_members')
+          .select('*, profiles(display_name)')
+          .eq('family_id', memData.family_id);
+
+        if (!allMembersError && allMembers) {
+          const names = allMembers.map(m => m.profiles?.display_name || '').filter(Boolean);
+          setFamilyMembers(names);
+        }
       } else {
         setFamilyId(null);
         setFamilyName('');
+        setFamilyMembers([]);
       }
     } catch (err: any) {
       console.error('Erro ao buscar perfil/família:', err.message);
@@ -147,6 +161,7 @@ function App() {
       setProfile(null);
       setFamilyId(null);
       setFamilyName('');
+      setFamilyMembers([]);
       setCategories([]);
       setTransactions([]);
     }
@@ -183,6 +198,21 @@ function App() {
     await fetchFinancialData();
   };
 
+  // View state mapper to support preset filters in Sidebar
+  const handleViewChange = (newView: string) => {
+    if (newView === 'entradas') {
+      setView('transactions-entradas');
+    } else if (newView === 'saidas') {
+      setView('transactions-saidas');
+    } else if (newView === 'salgados') {
+      setView('transactions-salgados');
+    } else if (newView === 'uber99') {
+      setView('transactions-uber99');
+    } else {
+      setView(newView);
+    }
+  };
+
   if (!authChecked) {
     return (
       <div style={{
@@ -190,10 +220,10 @@ function App() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: 'var(--bg-app)',
+        backgroundColor: '#07090e',
         color: '#fff'
       }}>
-        <Loader2 size={32} className="spinner" />
+        <Loader2 size={36} className="spinner text-primary" style={{ color: 'var(--color-primary)' }} />
       </div>
     );
   }
@@ -204,12 +234,22 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Mobile Hamburger menu toggle */}
+      <button 
+        className="mobile-nav-toggle" 
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+      >
+        <Menu size={24} />
+      </button>
+
       {/* Sidebar */}
       <Sidebar
         currentView={view}
-        setView={setView}
+        setView={handleViewChange}
         onLogout={() => setSession(null)}
         onAddTransactionClick={() => setIsAddOpen(true)}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
       />
 
       {/* Main viewport */}
@@ -224,26 +264,30 @@ function App() {
             flex: 1,
             textAlign: 'center',
             gap: '1.5rem',
-            padding: '2rem'
-          }}>
+            padding: '2rem',
+            maxWidth: '600px',
+            margin: 'auto'
+          }} className="glass-card">
             <div style={{
               backgroundColor: 'var(--color-primary-glow)',
               color: 'var(--color-primary)',
-              padding: '1.5rem',
-              borderRadius: '50%'
+              padding: '1.75rem',
+              borderRadius: '50%',
+              boxShadow: 'var(--glow-primary)',
+              animation: 'float 3s ease-in-out infinite'
             }}>
               <Users size={48} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
-                Conecte sua família!
+              <h2 style={{ fontSize: '1.85rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>
+                Conecte seu amor! 💕
               </h2>
-              <p style={{ color: 'var(--text-secondary)', maxWidth: '450px', lineHeight: '1.5', fontSize: '0.95rem' }}>
-                Para lançar receitas e despesas e compartilhar o saldo com sua esposa, você precisa primeiro criar ou participar de um Grupo Familiar.
+              <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', fontSize: '0.95rem' }}>
+                Para lançar suas receitas, despesas e compartilhar o saldo com sua esposa, você precisa primeiro criar um Grupo Familiar ou participar de um existente.
               </p>
             </div>
-            <button className="btn-primary" onClick={() => setView('family')}>
-              Configurar Família
+            <button className="btn-primary" onClick={() => setView('family')} style={{ padding: '0.85rem 2rem' }}>
+              Configurar Grupo Familiar
             </button>
           </div>
         ) : (
@@ -258,14 +302,15 @@ function App() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                backgroundColor: 'var(--bg-sidebar)',
+                backgroundColor: 'rgba(10, 15, 30, 0.85)',
                 border: '1px solid var(--border-color)',
                 padding: '0.5rem 1rem',
-                borderRadius: 'var(--radius-md)',
+                borderRadius: 'var(--radius-sm)',
                 fontSize: '0.8rem',
-                color: 'var(--text-secondary)'
+                color: 'var(--text-secondary)',
+                backdropFilter: 'blur(8px)'
               }}>
-                <Loader2 size={14} className="spinner" /> Atualizando...
+                <Loader2 size={14} className="spinner" style={{ color: 'var(--color-primary)' }} /> Atualizando...
               </div>
             )}
 
@@ -273,14 +318,24 @@ function App() {
               <Dashboard 
                 transactions={transactions} 
                 profileName={profile?.display_name}
+                familyMembers={familyMembers}
               />
             )}
 
-            {view === 'transactions' && (
+            {view.startsWith('transactions') && (
               <TransactionsList
+                key={view} // Remount list when preset switches
                 transactions={transactions}
                 categories={categories}
                 onDeleteTransaction={handleDeleteTransaction}
+                presetType={
+                  view === 'transactions-entradas' ? 'income' : 
+                  view === 'transactions-saidas' ? 'expense' : 'all'
+                }
+                presetSearch={
+                  view === 'transactions-salgados' ? 'Salgados' : 
+                  view === 'transactions-uber99' ? 'Uber' : ''
+                }
               />
             )}
 

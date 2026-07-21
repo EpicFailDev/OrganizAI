@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { X, Upload, Loader2, DollarSign } from 'lucide-react';
+import { X, Upload, Loader2, DollarSign, Calendar, Tag, ClipboardList } from 'lucide-react';
 
 interface Category {
   id: string;
@@ -100,11 +100,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       return;
     }
     if (!categoryId) {
-      setErrorMsg('Selecione uma categoria.');
+      setErrorMsg('Selecione uma categoria para prosseguir.');
       return;
     }
     if (!amount || isNaN(Number(amount.replace(',', '.'))) || Number(amount.replace(',', '.')) <= 0) {
-      setErrorMsg('Valor inválido.');
+      setErrorMsg('Insira um valor maior que zero.');
       return;
     }
 
@@ -175,50 +175,62 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="glass-card modal-content" style={{ animation: 'spin 0.2s linear 1' /* simplified entry animation */ }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-          <h2 style={{ fontSize: '1.25rem', color: '#fff', fontWeight: '700' }}>
-            Novo Lançamento
-          </h2>
-          <button className="modal-close" onClick={onClose} style={{ position: 'static' }}>
-            <X size={20} />
+    <div className="modal-overlay" onClick={onClose}>
+      <div 
+        className="glass-card modal-content" 
+        style={{ maxWidth: '540px' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.25rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.35rem', color: '#fff', fontWeight: '800', letterSpacing: '-0.02em' }}>
+              Novo Lançamento Familiar
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: '0.15rem' }}>Preencha os dados da transação para o rateio do casal</p>
+          </div>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
           </button>
         </div>
 
         {errorMsg && (
           <div style={{
-            backgroundColor: 'rgba(244, 63, 94, 0.1)',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
-            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'rgba(244, 63, 94, 0.08)',
+            border: '1px solid rgba(244, 63, 94, 0.2)',
+            borderRadius: 'var(--radius-sm)',
             padding: '0.75rem 1rem',
             color: 'var(--color-expense)',
             fontSize: '0.85rem',
-            marginBottom: '1.5rem'
+            marginBottom: '1.5rem',
+            lineHeight: '1.4'
           }}>
-            {errorMsg}
+            ⚠️ {errorMsg}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          
           {/* Toggle Type (Income / Expense) */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: '0.35rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
             <button
               type="button"
               onClick={() => setType('expense')}
               style={{
                 flex: 1,
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid',
-                borderColor: type === 'expense' ? 'var(--color-expense)' : 'var(--border-color)',
+                padding: '0.65rem',
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
                 backgroundColor: type === 'expense' ? 'var(--color-expense-bg)' : 'transparent',
                 color: type === 'expense' ? 'var(--color-expense)' : 'var(--text-secondary)',
                 fontWeight: '700',
                 cursor: 'pointer',
                 fontFamily: 'var(--font-title)',
-                fontSize: '0.9rem',
-                transition: 'all var(--transition-fast)'
+                fontSize: '0.88rem',
+                transition: 'all var(--transition-fast)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: type === 'expense' ? 'rgba(244, 63, 94, 0.2)' : 'transparent'
               }}
             >
               Despesa (Saída)
@@ -228,27 +240,32 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               onClick={() => setType('income')}
               style={{
                 flex: 1,
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid',
-                borderColor: type === 'income' ? 'var(--color-income)' : 'var(--border-color)',
+                padding: '0.65rem',
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
                 backgroundColor: type === 'income' ? 'var(--color-income-bg)' : 'transparent',
                 color: type === 'income' ? 'var(--color-income)' : 'var(--text-secondary)',
                 fontWeight: '700',
                 cursor: 'pointer',
                 fontFamily: 'var(--font-title)',
-                fontSize: '0.9rem',
-                transition: 'all var(--transition-fast)'
+                fontSize: '0.88rem',
+                transition: 'all var(--transition-fast)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: type === 'income' ? 'rgba(16, 185, 129, 0.2)' : 'transparent'
               }}
             >
               Receita (Entrada)
             </button>
           </div>
 
+          {/* Date and Amount inputs */}
           <div className="grid-2" style={{ gap: '1rem' }}>
             {/* Date */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Data</label>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Calendar size={14} color="var(--color-primary)" /> Data
+              </label>
               <input
                 type="date"
                 className="form-input"
@@ -259,15 +276,17 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </div>
 
             {/* Amount */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Valor</label>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <DollarSign size={14} color="var(--color-primary)" /> Valor
+              </label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <DollarSign size={16} style={{ position: 'absolute', left: '0.75rem', color: 'var(--text-muted)' }} />
+                <span style={{ position: 'absolute', left: '0.9rem', fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)' }}>R$</span>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ width: '100%', paddingLeft: '2rem' }}
-                  placeholder="R$ 0,00"
+                  style={{ width: '100%', paddingLeft: '2.3rem' }}
+                  placeholder="0,00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
@@ -277,22 +296,27 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           </div>
 
           {/* Description */}
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Descrição / Lançamento</label>
+          <div className="form-group">
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <ClipboardList size={14} color="var(--color-primary)" /> Descrição do Lançamento
+            </label>
             <input
               type="text"
               className="form-input"
-              placeholder="Ex: Uber, Feira, Salgados..."
+              placeholder="Ex: Combustível, Delivery Jantar, Venda Doces..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
             />
           </div>
 
+          {/* Category & Subcategory selection */}
           <div className="grid-2" style={{ gap: '1rem' }}>
             {/* Category */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Categoria</label>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Tag size={14} color="var(--color-primary)" /> Categoria
+              </label>
               <select
                 className="form-select"
                 value={categoryId}
@@ -307,8 +331,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </div>
 
             {/* Subcategory */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Subcategoria (Opcional)</label>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Tag size={14} color="var(--color-primary)" /> Subcategoria (Opcional)
+              </label>
               <select
                 className="form-select"
                 value={subcategoryId}
@@ -323,37 +349,39 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </div>
           </div>
 
-          {/* File Upload (Receipt Image) */}
-          <div className="form-group" style={{ marginBottom: 0 }}>
+          {/* Receipt File Upload */}
+          <div className="form-group">
             <label className="form-label">Comprovante / Recibo (Opcional)</label>
             <label style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '1.5rem',
+              padding: '1.75rem',
               border: '2px dashed var(--border-color)',
               borderRadius: 'var(--radius-md)',
               cursor: 'pointer',
               color: 'var(--text-secondary)',
               backgroundColor: 'rgba(255, 255, 255, 0.01)',
-              transition: 'all var(--transition-fast)'
+              transition: 'all var(--transition-normal)'
             }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = 'var(--color-primary)';
+                e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.02)';
                 e.currentTarget.style.color = '#fff';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = 'var(--border-color)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.01)';
                 e.currentTarget.style.color = 'var(--text-secondary)';
               }}
             >
-              <Upload size={24} style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }} />
-              <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                {attachment ? attachment.name : 'Selecionar imagem do recibo (PNG, JPG, PDF)'}
+              <Upload size={22} style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }} />
+              <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>
+                {attachment ? attachment.name : 'Selecionar imagem do comprovante'}
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Limite: 5MB
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Formatos aceitos: PNG, JPG, PDF (Limite: 5MB)
               </span>
               <input
                 type="file"
@@ -364,18 +392,18 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </label>
           </div>
 
-          {/* Submit */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+          {/* Submit Actions */}
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
             <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={onClose} disabled={loading}>
               Cancelar
             </button>
             <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
-                  {uploading ? 'Enviando Recibo...' : 'Salvando...'}
+                  <Loader2 size={16} className="spinner" />
+                  {uploading ? 'Enviando Recibo...' : 'Processando...'}
                 </>
-              ) : 'Salvar Lançamento'}
+              ) : 'Confirmar Lançamento'}
             </button>
           </div>
         </form>

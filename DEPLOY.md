@@ -153,3 +153,77 @@ Uma forma rápida com Certbot instalado diretamente no Ubuntu:
    ```
    Responda às perguntas no terminal. O Certbot configurará automaticamente o HTTPS.
 5. Pronto! Agora você e sua esposa podem acessar o controle financeiro de forma segura via `https://organizai-familia.duckdns.org` sem pagar nada por domínio ou servidor.
+
+---
+
+## ⚡ Alternativa de Deploy (Altamente Recomendada): Hospedagem do Web Frontend na Vercel
+
+Se você prefere não gerenciar servidores Linux na Oracle Cloud e quer uma hospedagem rápida, com domínio customizado gratuito (ou próprio) e deploys automáticos a cada `git push`, a **Vercel** é a melhor escolha para o painel web (`apps/web`).
+
+### Passo 1: Importar o Repositório na Vercel
+1. Crie uma conta gratuita em [vercel.com](https://vercel.com) (conecte com o seu GitHub).
+2. No dashboard da Vercel, clique em **Add New...** -> **Project**.
+3. Importe o repositório **OrganizAI**.
+
+### Passo 2: Configurar o Projeto Monorepo
+Na tela de importação do projeto, preencha as seguintes opções:
+1. **Root Directory**: Clique em **Edit** e selecione a pasta `apps/web`. A Vercel detectará automaticamente que é um projeto Vite.
+2. **Build and Output Settings**: Pode manter os padrões detectados:
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+3. **Environment Variables**: Expanda essa seção e adicione as variáveis de ambiente necessárias para o Vite compilar o app conectado ao Supabase:
+   - **Key**: `VITE_SUPABASE_URL` | **Value**: `https://xxxxxxxxxxxxxxxxxxxx.supabase.co` (sua URL do Supabase)
+   - **Key**: `VITE_SUPABASE_ANON_KEY` | **Value**: `eyJhbGciOiJIUzI1Ni...` (sua chave pública anon)
+
+### Passo 3: Realizar o Deploy
+1. Clique em **Deploy**. A Vercel fará o clone, instalará dependências, compilará o React e publicará em menos de 1 minuto.
+2. Após a conclusão, você receberá um domínio gratuito do tipo `organizai-web.vercel.app`.
+
+### Passo 4: Configurar Domínio Customizado (Próprio)
+Se você possui ou comprou um domínio próprio:
+1. No painel do projeto na Vercel, acesse **Settings** -> **Domains**.
+2. Insira o domínio que deseja usar (ex: `financeiro.seu-dominio.com` ou `app.seu-dominio.com`) e clique em **Add**.
+3. A Vercel exibirá as configurações DNS necessárias:
+   - Para um **subdomínio** (ex: `financeiro.seu-dominio.com`), adicione um registro **CNAME** na empresa onde registrou seu domínio apontando para `cname.vercel-dns.com`.
+   - Para um **domínio principal** (ex: `seu-dominio.com`), adicione um registro **A** apontando para `76.76.21.21`.
+4. Assim que o DNS propagar (normalmente em poucos minutos), a Vercel gerará o certificado SSL (HTTPS) automaticamente e o seu app estará online de forma segura!
+
+---
+
+## 🐳 Alternativa de Deploy: Usando o Coolify na Oracle Cloud VPS (Gerenciamento Completo)
+
+O **Coolify** é um painel autohospedado (uma alternativa ao Heroku/Vercel) que roda na sua própria VPS. Ele cuida do Docker, proxy reverso, geração automática de SSL (HTTPS) Let's Encrypt e deploys automáticos a cada `git push` no GitHub.
+
+### Passo 1: Instalar o Coolify na VPS da Oracle
+1. Conecte-se à sua VPS via SSH:
+   ```bash
+   ssh -i /caminho/sua-chave.key ubuntu@<IP_PUBLICO_DA_ORACLE>
+   ```
+2. Execute o script de instalação do Coolify:
+   ```bash
+   curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
+   ```
+3. Aguarde a conclusão da instalação.
+4. Acesse o painel de gerenciamento do Coolify pelo seu navegador:
+   `http://<IP_PUBLICO_DA_ORACLE>:8000`
+5. Crie sua conta de administrador e conclua o assistente inicial.
+
+### Passo 2: Configurar o Domínio no DuckDNS
+1. Acesse [duckdns.org](https://www.duckdns.org) e aponte o seu subdomínio (ex: `organizai-familia.duckdns.org`) para o **IP Público** da sua VPS da Oracle.
+
+### Passo 3: Criar a Aplicação no Coolify
+1. No painel do Coolify, crie um novo **Project** e um **Environment** (ex: `production`).
+2. Adicione um novo recurso: **Add New Resource** -> **Application** -> **GitHub Repository**.
+3. Conecte seu perfil do GitHub e selecione o repositório **OrganizAI**.
+4. Defina as seguintes opções de configuração do projeto:
+   * **Base Directory**: `/apps/web` (para compilar a subpasta correta do frontend).
+   * **Build Pack**: Selecione **Nixpacks** (ele detectará automaticamente o Vite/React).
+   * **Domains**: Insira o seu domínio completo com HTTPS:
+     `https://organizai-familia.duckdns.org`
+   * **Environment Variables**: Adicione as variáveis de compilação da sua aplicação:
+     * `VITE_SUPABASE_URL` -> Valor da sua URL do Supabase.
+     * `VITE_SUPABASE_ANON_KEY` -> Valor da chave pública anon do Supabase.
+5. Clique em **Deploy** no topo superior direito.
+
+Pronto! O Coolify baixará o código do GitHub, instalará as dependências, gerará os arquivos estáticos, configurará o redirecionamento de portas e ativará o certificado SSL Let's Encrypt automaticamente. Sempre que você fizer alterações no código e enviar para o GitHub, o Coolify fará o deploy automático!
