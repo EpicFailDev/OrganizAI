@@ -229,11 +229,10 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
                 >
                   <span style={{
                     fontSize: '0.72rem', fontWeight: 700,
-                    color: isToday ? 'var(--color-primary)' : isSelected ? '#fff' : 'var(--text-secondary)',
+                    color: isToday ? '#fff' : isSelected ? '#fff' : 'var(--text-secondary)',
                     width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     borderRadius: '50%',
                     backgroundColor: isToday ? 'var(--color-primary)' : 'transparent',
-                    color: isToday ? '#fff' : undefined,
                   }}>
                     {day}
                   </span>

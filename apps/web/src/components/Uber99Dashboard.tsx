@@ -465,7 +465,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
                 <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
                 <Tooltip
-                  formatter={(value: number, name: string) => [fmt(value), name]}
+                  formatter={(value) => [fmt(Number(value)), '']}
                   contentStyle={{
                     backgroundColor: '#0c101b', borderColor: 'rgba(255,255,255,0.08)',
                     borderRadius: 'var(--radius-md)', color: '#fff', boxShadow: 'var(--shadow-md)',
@@ -683,7 +683,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
                 <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
                 <Tooltip
-                  formatter={(value: number, name: string) => [fmt(value), name]}
+                  formatter={(value) => [fmt(Number(value)), '']}
                   contentStyle={{
                     backgroundColor: '#0c101b', borderColor: 'rgba(255,255,255,0.08)',
                     borderRadius: 'var(--radius-md)', color: '#fff', boxShadow: 'var(--shadow-md)',
