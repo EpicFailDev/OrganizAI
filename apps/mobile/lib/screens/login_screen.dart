@@ -15,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _selectedUser;
+  String? _errorMsg;
 
   static const Map<String, Map<String, String>> _users = {
     'Guilherme': {
@@ -35,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _loading = true;
       _selectedUser = name;
+      _errorMsg = null;
     });
 
     final supabase = Supabase.instance.client;
@@ -46,45 +48,13 @@ class _LoginScreenState extends State<LoginScreen> {
         password: user['password']!,
       );
     } on AuthException catch (e) {
-      if (e.message.contains('Invalid login credentials')) {
-        try {
-          await supabase.auth.signUp(
-            email: user['email']!,
-            password: user['password']!,
-            data: {'display_name': name},
-          );
-        } catch (signUpError) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Erro ao criar conta: $signUpError'),
-                backgroundColor: AppColors.expenseBg,
-              ),
-            );
-          }
-          return;
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.message),
-              backgroundColor: AppColors.expenseBg,
-            ),
-          );
-        }
-        return;
+      if (mounted) {
+        setState(() => _errorMsg = e.message);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro: $e'),
-            backgroundColor: AppColors.expenseBg,
-          ),
-        );
+        setState(() => _errorMsg = 'Erro ao acessar. Tente novamente.');
       }
-      return;
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -117,20 +87,18 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: AppSpacing.xxl),
 
-                // Logo
                 FadeSlideTransition(
                   child: _buildLogo(),
                 ),
 
                 const SizedBox(height: AppSpacing.xxxl),
 
-                // Título
                 FadeSlideTransition(
                   delay: const Duration(milliseconds: 100),
                   child: Column(
                     children: [
                       Text(
-                        'Bem-vindo! 👋',
+                        'Quem está usando agora?',
                         textAlign: TextAlign.center,
                         style: AppTextStyles.displayLarge.copyWith(
                           fontSize: 28,
@@ -138,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        'Para continue, selecione quem\nestá acessando hoje.',
+                        'Dados compartilhados entre os dois perfis.',
                         textAlign: TextAlign.center,
                         style: AppTextStyles.bodyMedium.copyWith(
                           color: AppColors.textSecondary,
@@ -151,33 +119,60 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: AppSpacing.xxxl),
 
-                // Profile cards
+                if (_errorMsg != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.expenseBg.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.expense.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: AppColors.expense,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            _errorMsg!,
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.expense,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+
                 FadeSlideTransition(
                   delay: const Duration(milliseconds: 200),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: _ProfileCard(
-                          name: 'Guilherme',
-                          role: 'Motorista',
-                          isSelected: _selectedUser == 'Guilherme',
-                          isPrincipal: true,
-                          isLoading: _loading && _selectedUser == 'Guilherme',
-                          gender: _ProfileGender.male,
-                          onTap: () => _loginAs('Guilherme'),
-                        ),
+                      _ProfileButton(
+                        name: 'Guilherme',
+                        role: 'Motorista',
+                        icon: Icons.person_rounded,
+                        isLoading: _loading && _selectedUser == 'Guilherme',
+                        isDisabled: _loading && _selectedUser != 'Guilherme',
+                        color: AppColors.primary,
+                        onTap: () => _loginAs('Guilherme'),
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: _ProfileCard(
-                          name: 'Jenifer',
-                          role: 'Vendedora de Salgados',
-                          isSelected: _selectedUser == 'Jenifer',
-                          isPrincipal: false,
-                          isLoading: _loading && _selectedUser == 'Jenifer',
-                          gender: _ProfileGender.female,
-                          onTap: () => _loginAs('Jenifer'),
-                        ),
+                      const SizedBox(height: AppSpacing.md),
+                      _ProfileButton(
+                        name: 'Jenifer',
+                        role: 'Vendedora de Salgados',
+                        icon: Icons.person_rounded,
+                        isLoading: _loading && _selectedUser == 'Jenifer',
+                        isDisabled: _loading && _selectedUser != 'Jenifer',
+                        color: AppColors.secondary,
+                        onTap: () => _loginAs('Jenifer'),
                       ),
                     ],
                   ),
@@ -185,44 +180,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: AppSpacing.xxxl),
 
-                // Security info
                 FadeSlideTransition(
                   delay: const Duration(milliseconds: 350),
                   child: _buildSecurityInfo(),
                 ),
 
                 const SizedBox(height: AppSpacing.xxl),
-
-                // Footer
-                FadeSlideTransition(
-                  delay: const Duration(milliseconds: 450),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '💜 Juntos, construímos um ',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        'futuro melhor',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '! 💚',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: AppSpacing.lg),
               ],
             ),
           ),
@@ -327,268 +290,90 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-enum _ProfileGender { male, female }
-
-class _ProfileCard extends StatelessWidget {
+class _ProfileButton extends StatelessWidget {
   final String name;
   final String role;
-  final bool isSelected;
-  final bool isPrincipal;
+  final IconData icon;
   final bool isLoading;
-  final _ProfileGender gender;
+  final bool isDisabled;
+  final Color color;
   final VoidCallback onTap;
 
-  const _ProfileCard({
+  const _ProfileButton({
     required this.name,
     required this.role,
-    required this.isSelected,
-    required this.isPrincipal,
+    required this.icon,
     required this.isLoading,
-    required this.gender,
+    required this.isDisabled,
+    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: isLoading ? null : onTap,
+      onTap: isLoading || isDisabled ? null : onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.08)
-              : AppColors.surface.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(20),
+          color: AppColors.surface.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected
-                ? AppColors.primary.withValues(alpha: 0.6)
-                : AppColors.surfaceBorder.withValues(alpha: 0.4),
-            width: isSelected ? 2 : 1,
+            color: AppColors.surfaceBorder.withValues(alpha: 0.4),
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    blurRadius: 20,
-                  ),
-                ]
-              : [],
         ),
-        child: Column(
+        child: Row(
           children: [
-            // Principal badge
-            if (isPrincipal)
-              Align(
-                alignment: Alignment.topLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        color: AppColors.primary,
-                        size: 12,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Principal',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(50),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.3),
                 ),
-              )
-            else
-              const SizedBox(height: 20),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Avatar
-            _AvatarWidget(
-              gender: gender,
-              isSelected: isSelected,
-            ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Name
-            Text(
-              name,
-              style: AppTextStyles.headlineLarge.copyWith(
-                fontSize: 16,
-                color: AppColors.textPrimary,
               ),
+              child: isLoading
+                  ? Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: CircularProgressIndicator(
+                        color: color,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : Icon(icon, color: color, size: 26),
             ),
-
-            const SizedBox(height: 4),
-
-            // Role
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  gender == _ProfileGender.male
-                      ? Icons.directions_car_rounded
-                      : Icons.storefront_rounded,
-                  size: 12,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: AppTextStyles.headlineLarge.copyWith(
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
                     role,
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.primary,
-                      fontSize: 11,
+                      color: AppColors.textSecondary,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-
-            const SizedBox(height: AppSpacing.md),
-
-            // Selection indicator
-            isLoading
-                ? const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : isSelected
-                    ? Container(
-                        width: 28,
-                        height: 28,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check_rounded,
-                          color: AppColors.background,
-                          size: 18,
-                        ),
-                      )
-                    : Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.textTertiary,
-                            width: 2,
-                          ),
-                        ),
-                      ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: color.withValues(alpha: isDisabled ? 0.2 : 0.6),
+            ),
           ],
         ),
       ),
     );
   }
-}
-
-class _AvatarWidget extends StatelessWidget {
-  final _ProfileGender gender;
-  final bool isSelected;
-
-  const _AvatarWidget({
-    required this.gender,
-    required this.isSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            AppColors.primary.withValues(alpha: isSelected ? 0.2 : 0.1),
-            AppColors.surface,
-          ],
-        ),
-        border: Border.all(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.3)
-              : AppColors.surfaceBorder.withValues(alpha: 0.3),
-          width: 2,
-        ),
-      ),
-      child: ClipOval(
-        child: CustomPaint(
-          painter: _AvatarPainter(gender: gender),
-          child: Center(
-            child: Icon(
-              gender == _ProfileGender.male
-                  ? Icons.person_rounded
-                  : Icons.person_rounded,
-              size: 48,
-              color: gender == _ProfileGender.male
-                  ? AppColors.primary.withValues(alpha: 0.7)
-                  : AppColors.primary.withValues(alpha: 0.6),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AvatarPainter extends CustomPainter {
-  final _ProfileGender gender;
-
-  _AvatarPainter({required this.gender});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-
-    // Background circle
-    final bgPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          gender == _ProfileGender.male
-              ? const Color(0xFF1A4D3A)
-              : const Color(0xFF2D1A4D),
-          AppColors.surface,
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: size.width / 2));
-
-    canvas.drawCircle(center, size.width / 2, bgPaint);
-
-    // Glow effect
-    final glowPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          AppColors.primary.withValues(alpha: 0.15),
-          Colors.transparent,
-        ],
-      ).createShader(
-          Rect.fromCircle(center: center, radius: size.width / 2),
-      );
-
-    canvas.drawCircle(center, size.width / 2, glowPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

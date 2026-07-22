@@ -23,7 +23,7 @@ void main() {
       expect(find.byIcon(Icons.trending_up), findsOneWidget);
     });
 
-    testWidgets('renders large card when isLarge is true', (tester) async {
+    testWidgets('renders change percent when provided', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -32,7 +32,7 @@ void main() {
               value: 5000,
               valueColor: AppColors.textPrimary,
               icon: Icons.wallet,
-              isLarge: true,
+              changePercent: 10,
             ),
           ),
         ),
@@ -40,6 +40,7 @@ void main() {
 
       expect(find.text('Saldo'), findsOneWidget);
       expect(find.byIcon(Icons.wallet), findsOneWidget);
+      expect(find.text('10%'), findsOneWidget);
     });
   });
 }

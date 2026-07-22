@@ -4,12 +4,14 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../providers/family_provider.dart';
 import '../providers/transaction_provider.dart';
-import '../providers/category_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/recurring_bill_provider.dart';
+import '../widgets/custom_bottom_nav_bar.dart';
 import 'dashboard_tab.dart';
 import 'transactions_tab.dart';
 import 'categories_tab.dart';
 import 'family_tab.dart';
+import 'recurring_bills_tab.dart';
 import 'add_transaction_screen.dart';
 import 'scan_receipt_screen.dart';
 
@@ -122,155 +124,303 @@ class _FamilyShellState extends ConsumerState<_FamilyShell> {
   void _showAddOptions(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceBorder,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Adicionar',
-                style: AppTextStyles.headlineMedium,
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: Container(
-                  width: 44,
-                  height: 44,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.surfaceBorder, width: 0.5),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Container(
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.primaryMuted,
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.surfaceBorder,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: const Icon(Icons.edit_outlined, color: AppColors.primary),
                 ),
-                title: const Text('Lançamento Manual'),
-                subtitle: const Text('Adicionar receita ou despesa'),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AddTransactionScreen(),
-                    ),
-                  );
-                  if (result == true) {
-                    ref.invalidate(transactionProvider);
-                  }
-                },
-              ),
-              const Divider(color: AppColors.surfaceBorder),
-              ListTile(
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.expenseBg,
-                    borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 20),
+                // Title
+                Text(
+                  'Criar novo',
+                  style: AppTextStyles.headlineMedium.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: const Icon(Icons.document_scanner_outlined, color: AppColors.expense),
                 ),
-                title: const Text('Escanear Nota Fiscal'),
-                subtitle: const Text('Escaneie e adicione itens automaticamente'),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ScanReceiptScreen(),
-                    ),
-                  );
-                  if (result == true) {
-                    ref.invalidate(transactionProvider);
-                  }
-                },
-              ),
-            ],
+                const SizedBox(height: 24),
+                // Options
+                _AddOptionTile(
+                  icon: Icons.edit_rounded,
+                  iconColor: AppColors.primary,
+                  iconBgColor: AppColors.primaryMuted,
+                  title: 'Lançamento Manual',
+                  subtitle: 'Registre receita ou despesa',
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddTransactionScreen(),
+                      ),
+                    );
+                    if (result == true) {
+                      ref.invalidate(transactionProvider);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                _AddOptionTile(
+                  icon: Icons.document_scanner_rounded,
+                  iconColor: AppColors.secondary,
+                  iconBgColor: AppColors.secondary.withValues(alpha: 0.15),
+                  title: 'Escanear Nota Fiscal',
+                  subtitle: 'Capture itens automaticamente',
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ScanReceiptScreen(),
+                      ),
+                    );
+                    if (result == true) {
+                      ref.invalidate(transactionProvider);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  Widget _buildHeader(WidgetRef ref) {
+    final familyState = ref.watch(familyProvider);
+    final familyName = familyState.valueOrNull?.group?.name ?? 'família';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surfaceVariant,
+              border: Border.all(color: AppColors.surfaceBorder),
+            ),
+            child: const Icon(
+              Icons.person,
+              color: AppColors.textSecondary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Greeting
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Olá, Guilherme! 👋',
+                  style: AppTextStyles.headlineLarge.copyWith(
+                    fontSize: 18,
+                    color: const Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Visão geral da $familyName',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: const Color(0xFF6B7280),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 14,
+                      color: AppColors.textTertiary,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Search icon
+          IconButton(
+            icon: Icon(
+              Icons.search,
+              color: AppColors.textSecondary,
+              size: 22,
+            ),
+            onPressed: () {},
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          ),
+          // Notification bell
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.notifications_outlined,
+                  color: AppColors.textSecondary,
+                  size: 22,
+                ),
+                onPressed: () {},
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              ),
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: const BoxDecoration(
+                    color: AppColors.expense,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Text(
+                      '3',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const tabs = [
-      DashboardTab(),
+    final tabs = [
+      DashboardTab(onNavigateToTab: (index) => setState(() => _currentIndex = index)),
       TransactionsTab(),
+      RecurringBillsTab(),
       CategoriesTab(),
       FamilyTab(),
     ];
 
-    const titles = ['OrganizAI', 'Lançamentos', 'Categorias', 'Família'];
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(titles[_currentIndex], style: AppTextStyles.displaySmall),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.textSecondary),
-            onPressed: () {
-              ref.invalidate(familyProvider);
-              ref.invalidate(transactionProvider);
-              ref.invalidate(categoryProvider);
-            },
-          ),
-        ],
+      extendBody: true,
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: _buildHeader(ref),
       ),
       body: tabs[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: AppColors.surfaceBorder, width: 0.5),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onItemTapped: (idx) => setState(() => _currentIndex = idx),
+        onCenterButtonPressed: () => _showAddOptions(context, ref),
+      ),
+    );
+  }
+}
+
+class _AddOptionTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBgColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _AddOptionTile({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBgColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textDisabled,
+                size: 20,
+              ),
+            ],
           ),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (idx) => setState(() => _currentIndex = idx),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.surface,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textDisabled,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              label: 'Resumo',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined),
-              label: 'Lançamentos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.sell_outlined),
-              label: 'Categorias',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people_outline),
-              label: 'Família',
-            ),
-          ],
-        ),
       ),
-      floatingActionButton: _currentIndex != 3
-          ? FloatingActionButton(
-              backgroundColor: AppColors.primary,
-              elevation: 2,
-              onPressed: () => _showAddOptions(context, ref),
-              child: const Icon(Icons.add, color: AppColors.black, size: 28),
-            )
-          : null,
     );
   }
 }

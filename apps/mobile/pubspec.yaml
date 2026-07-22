@@ -41,6 +41,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  assets:
+    - assets/wallet_icon.png
+
   fonts:
     - family: Outfit
       fonts:
