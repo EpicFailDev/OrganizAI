@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { 
   Search, 
   Trash2, 
@@ -7,10 +7,13 @@ import {
   X,
   FileText
 } from 'lucide-react';
+import { formatCurrency } from '../utils';
+import { TransactionDetailModal } from './TransactionDetailModal';
 
 interface Transaction {
   id: string;
   date: string;
+  time?: string;
   description: string;
   type: 'income' | 'expense';
   amount: number;
@@ -40,61 +43,78 @@ interface Category {
   type: 'income' | 'expense';
 }
 
+interface TransactionUpdate {
+  date: string;
+  time?: string;
+  description: string;
+  type: 'income' | 'expense';
+  amount: number;
+  category_id: string;
+  subcategory_id?: string | null;
+}
+
 interface TransactionsListProps {
   transactions: Transaction[];
   categories: Category[];
   onDeleteTransaction: (id: string) => Promise<void>;
+  onUpdateTransaction: (id: string, updates: TransactionUpdate) => Promise<void>;
   presetType?: 'income' | 'expense' | 'all';
   presetSearch?: string;
+  familyId: string;
+  userId: string;
 }
 
 export const TransactionsList: React.FC<TransactionsListProps> = ({
   transactions,
   categories,
   onDeleteTransaction,
+  onUpdateTransaction,
   presetType = 'all',
-  presetSearch = ''
+  presetSearch = '',
+  familyId,
+  userId
 }) => {
-  const [searchTerm, setSearchTerm] = useState(presetSearch);
+  const [searchInput, setSearchInput] = useState(presetSearch);
+  const searchTerm = useDeferredValue(searchInput);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedType, setSelectedType] = useState<'income' | 'expense' | 'all'>(presetType);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  });
   
-  // Image Viewer State
   const [viewerImage, setViewerImage] = useState<string | null>(null);
-  // Receipt Items Viewer State
   const [viewerReceiptItems, setViewerReceiptItems] = useState<{ transaction: Transaction; items: ReceiptItem[] } | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-  // Synchronize state when presets change from Sidebar click
   useEffect(() => {
-    setSearchTerm(presetSearch);
+    setSearchInput(presetSearch);
     setSelectedType(presetType);
   }, [presetSearch, presetType]);
 
-  // Filter logic
   const filteredTransactions = useMemo(() => {
+    const lowerSearch = searchTerm.toLowerCase();
     return transactions.filter(t => {
-      const matchSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          t.categories?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          t.subcategories?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = !searchTerm || t.description.toLowerCase().includes(lowerSearch) ||
+                          t.categories?.name?.toLowerCase().includes(lowerSearch) ||
+                          t.subcategories?.name?.toLowerCase().includes(lowerSearch);
       
       const matchCategory = selectedCategory === '' || t.category_id === selectedCategory;
       const matchType = selectedType === 'all' || t.type === selectedType;
       
       let matchDate = true;
-      if (startDate) {
-        matchDate = matchDate && new Date(t.date) >= new Date(startDate);
-      }
-      if (endDate) {
-        matchDate = matchDate && new Date(t.date) <= new Date(endDate);
-      }
+      if (startDate) matchDate = new Date(t.date) >= new Date(startDate);
+      if (matchDate && endDate) matchDate = new Date(t.date) <= new Date(endDate);
 
       return matchSearch && matchCategory && matchType && matchDate;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, searchTerm, selectedCategory, selectedType, startDate, endDate]);
 
-  // Total balance for filtered items
   const totals = useMemo(() => {
     let income = 0;
     let expense = 0;
@@ -103,22 +123,11 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
       if (t.type === 'income') income += amt;
       else expense += amt;
     });
-    return {
-      income,
-      expense,
-      balance: income - expense
-    };
+    return { income, expense, balance: income - expense };
   }, [filteredTransactions]);
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(val);
-  };
-
   const handleClearFilters = () => {
-    setSearchTerm('');
+    setSearchInput('');
     setSelectedCategory('');
     setSelectedType('all');
     setStartDate('');
@@ -158,8 +167,8 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
               className="form-input"
               style={{ width: '100%', paddingLeft: '2.3rem' }}
               placeholder="Pesquisar por texto..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
 
@@ -213,7 +222,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
           </div>
         </div>
 
-        {(searchTerm || selectedCategory || selectedType !== 'all' || startDate || endDate) && (
+        {(searchInput || selectedCategory || selectedType !== 'all' || startDate || endDate) && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
             <button 
               onClick={handleClearFilters}
@@ -247,6 +256,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
               <thead>
                 <tr>
                   <th style={{ width: '110px' }}>Data</th>
+                  <th style={{ width: '70px' }}>Horário</th>
                   <th>Descrição</th>
                   <th>Categoria</th>
                   <th>Subcategoria</th>
@@ -260,9 +270,13 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
               </thead>
               <tbody>
                 {filteredTransactions.map((t) => (
-                  <tr key={t.id}>
+                  <tr key={t.id} onClick={() => setSelectedTransaction(t)}
+                    style={{ cursor: 'pointer' }}>
                     <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
                       {new Date(t.date).toLocaleDateString('pt-BR')}
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      {t.time || <span style={{ color: 'var(--text-muted)' }}>-</span>}
                     </td>
                     <td style={{ fontWeight: '700', color: '#ffffff' }}>
                       {t.description}
@@ -327,7 +341,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                     <td style={{ textAlign: 'center' }}>
                       {t.attachment_url ? (
                         <button
-                          onClick={() => setViewerImage(t.attachment_url || null)}
+                          onClick={(e) => { e.stopPropagation(); setViewerImage(t.attachment_url || null); }}
                           style={{
                             background: 'none',
                             border: 'none',
@@ -353,7 +367,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                     <td style={{ textAlign: 'center' }}>
                       {t.receipt_items && t.receipt_items.length > 0 ? (
                         <button
-                          onClick={() => setViewerReceiptItems({ transaction: t, items: t.receipt_items || [] })}
+                          onClick={(e) => { e.stopPropagation(); setViewerReceiptItems({ transaction: t, items: t.receipt_items || [] }); }}
                           style={{
                             background: 'none',
                             border: 'none',
@@ -381,7 +395,8 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (window.confirm(`Excluir permanentemente o lançamento "${t.description}"?`)) {
                             onDeleteTransaction(t.id);
                           }
@@ -603,6 +618,19 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transaction Detail Modal */}
+      {selectedTransaction && (
+        <TransactionDetailModal
+          transaction={selectedTransaction}
+          categories={categories}
+          familyId={familyId}
+          userId={userId}
+          onClose={() => setSelectedTransaction(null)}
+          onUpdate={onUpdateTransaction}
+          onDelete={onDeleteTransaction}
+        />
       )}
 
       {/* Responsive Table Styles */}
