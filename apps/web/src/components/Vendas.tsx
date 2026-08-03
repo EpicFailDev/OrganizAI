@@ -11,10 +11,12 @@ import {
   Plus,
   Loader2,
   X,
-  Check
+  Check,
+  Database
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { PricingCalculator } from './PricingCalculator';
+import { IngredientsBase } from './IngredientsBase';
 
 interface Transaction {
   id: string;
@@ -57,7 +59,7 @@ interface VendasProps {
   profileName?: string;
 }
 
-type TabType = 'calculator' | 'products' | 'sales' | 'reports';
+type TabType = 'calculator' | 'base' | 'products' | 'sales' | 'reports';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -215,6 +217,7 @@ export const Vendas: React.FC<VendasProps> = ({
 
   const tabs = [
     { id: 'calculator' as TabType, label: 'Calculadora', icon: Calculator },
+    { id: 'base' as TabType, label: 'Base', icon: Database },
     { id: 'products' as TabType, label: 'Produtos', icon: Package },
     { id: 'sales' as TabType, label: 'Vendas', icon: ShoppingBag },
     { id: 'reports' as TabType, label: 'Relatórios', icon: BarChart3 },
@@ -342,6 +345,10 @@ export const Vendas: React.FC<VendasProps> = ({
       <div style={{ width: '100%' }}>
         {activeTab === 'calculator' && (
           <PricingCalculator familyId={familyId} userId={userId} />
+        )}
+
+        {activeTab === 'base' && (
+          <IngredientsBase familyId={familyId} />
         )}
 
         {activeTab === 'products' && (

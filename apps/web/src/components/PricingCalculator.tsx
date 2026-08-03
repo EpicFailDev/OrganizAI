@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Save, 
   Plus, 
@@ -7,6 +8,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { parseNumber } from '../utils';
 
 interface RecipeItem {
   id: string;
@@ -14,6 +16,13 @@ interface RecipeItem {
   package_grams: number;
   package_cost: number;
   used_grams: number;
+}
+
+interface BaseIngredient {
+  id: string;
+  name: string;
+  package_grams: number;
+  package_cost: number;
 }
 
 interface Recipe {
@@ -35,6 +44,7 @@ const generateId = () => Math.random().toString(36).substring(2, 15);
 const formatCurrency = (value: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+
 export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
   familyId,
   userId
@@ -53,6 +63,14 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // ── Tabela Base de Ingredientes (autocomplete) ──
+  const [baseIngredients, setBaseIngredients] = useState<BaseIngredient[]>([]);
+  const [suggestForId, setSuggestForId] = useState<string | null>(null);
+  // Posição (fixa) do dropdown, calculada a partir do input — renderizado via portal no <body>
+  // para não ser cortado pelo overflow da tabela nem deslocado por transforms do ViewStack
+  const [suggestRect, setSuggestRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const blurTimerRef = useRef<number | null>(null);
 
   // Fetch recipes from Supabase
   const fetchRecipes = useCallback(async () => {
@@ -113,6 +131,38 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
   useEffect(() => {
     fetchRecipeItems();
   }, [selectedRecipeId]);
+
+  // Fetch Tabela Base de Ingredientes da família
+  useEffect(() => {
+    if (!familyId) return;
+    supabase
+      .from('ingredients_base')
+      .select('*')
+      .eq('family_id', familyId)
+      .order('name')
+      .then(({ data, error }) => {
+        if (!error && data) setBaseIngredients(data as BaseIngredient[]);
+      });
+  }, [familyId]);
+
+  // Fecha o dropdown ao rolar a página (position:fixed não acompanha o scroll)
+  useEffect(() => {
+    if (!suggestForId) return;
+    const close = () => setSuggestForId(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [suggestForId]);
+
+  // Limpa o timer do blur ao desmontar
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current) window.clearTimeout(blurTimerRef.current);
+    };
+  }, []);
 
   // Create new recipe
   const createNewRecipe = useCallback(async () => {
@@ -256,7 +306,22 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
     ));
   }, []);
 
+  // Sugestões da Tabela Base conforme o que a Jenifer digita
+  const getSuggestions = useCallback((query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return baseIngredients
+      .filter(b => b.name.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [baseIngredients]);
 
+  // Aplica o ingrediente da Base: nome + custo + gramas da embalagem
+  const applyBaseIngredient = useCallback((itemId: string, base: BaseIngredient) => {
+    updateItem(itemId, 'ingredient_name', base.name);
+    updateItem(itemId, 'package_cost', base.package_cost);
+    updateItem(itemId, 'package_grams', base.package_grams);
+    setSuggestForId(null);
+  }, [updateItem]);
 
   if (loading) {
     return (
@@ -306,6 +371,10 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
         Complete <strong style={{ color: '#2196f3' }}>somente</strong> as{' '}
         <span style={{ color: '#2196f3', fontWeight: 'bold' }}>células em azul</span>,
         a tabela faz o resto!
+        <br />
+        <span style={{ color: '#2196f3', fontSize: '0.85rem' }}>
+          💡 Dica: digite o nome do ingrediente e escolha na <b>Tabela Base</b> — custo e gramas da embalagem são preenchidos sozinhos.
+        </span>
         <span style={{ 
           float: 'right', 
           color: '#e91e63',
@@ -490,34 +559,59 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
                 alignItems: 'center'
               }}
             >
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={item.ingredient_name}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updateItem(item.id, 'ingredient_name', value);
+                    // Preenchimento automático se o nome bater exatamente com a Base
+                    const exact = baseIngredients.find(b => b.name.toLowerCase() === value.trim().toLowerCase());
+                    if (exact) {
+                      updateItem(item.id, 'package_cost', exact.package_cost);
+                      updateItem(item.id, 'package_grams', exact.package_grams);
+                    }
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setSuggestRect({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+                    setSuggestForId(item.id);
+                  }}
+                  onFocus={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setSuggestRect({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+                    setSuggestForId(item.id);
+                  }}
+                  onBlur={() => {
+                    if (blurTimerRef.current) window.clearTimeout(blurTimerRef.current);
+                    blurTimerRef.current = window.setTimeout(() => setSuggestForId(null), 150);
+                  }}
+                  className="excel-input-cell"
+                  placeholder="Digite o ingrediente..."
+                />
+              </div>
               <input
                 type="text"
-                value={item.ingredient_name}
-                onChange={(e) => updateItem(item.id, 'ingredient_name', e.target.value)}
+                inputMode="decimal"
+                value={String(item.package_cost ?? '').replace('.', ',')}
+                onChange={(e) => updateItem(item.id, 'package_cost', parseNumber(e.target.value))}
                 className="excel-input-cell"
-                placeholder="Ingrediente"
+                placeholder="0,00"
               />
               <input
-                type="number"
-                value={item.package_cost || ''}
-                onChange={(e) => updateItem(item.id, 'package_cost', parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="decimal"
+                value={String(item.package_grams ?? '').replace('.', ',')}
+                onChange={(e) => updateItem(item.id, 'package_grams', parseNumber(e.target.value))}
                 className="excel-input-cell"
-                min="0"
-                step="0.01"
+                placeholder="0"
               />
               <input
-                type="number"
-                value={item.package_grams || ''}
-                onChange={(e) => updateItem(item.id, 'package_grams', parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="decimal"
+                value={String(item.used_grams ?? '').replace('.', ',')}
+                onChange={(e) => updateItem(item.id, 'used_grams', parseNumber(e.target.value))}
                 className="excel-input-cell"
-                min="0"
-              />
-              <input
-                type="number"
-                value={item.used_grams || ''}
-                onChange={(e) => updateItem(item.id, 'used_grams', parseFloat(e.target.value) || 0)}
-                className="excel-input-cell"
-                min="0"
+                placeholder="0"
               />
               <div className="excel-readonly-cell" style={{ 
                 fontWeight: 'bold',
@@ -573,6 +667,46 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
         </div>
       </div>
 
+      {/* Dropdown de sugestões da Tabela Base — portal no <body>: escapa do overflow da tabela
+          e de transforms do ViewStack (position:fixed seria deslocado por ancestral com transform) */}
+      {suggestForId && suggestRect && (() => {
+        const current = items.find(i => i.id === suggestForId);
+        const suggestions = current ? getSuggestions(current.ingredient_name) : [];
+        if (suggestions.length === 0) return null;
+        // Garante que o dropdown não estoure a parte de baixo da janela
+        const top = Math.min(suggestRect.top, window.innerHeight - 240);
+        return createPortal(
+          <div style={{
+            position: 'fixed', top, left: suggestRect.left, width: suggestRect.width,
+            zIndex: 1000, background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)', borderRadius: 8,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            maxHeight: 200, overflowY: 'auto'
+          }}>
+            {suggestions.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => applyBaseIngredient(suggestForId, s)}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  gap: '0.5rem', width: '100%', padding: '0.5rem 0.6rem',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  textAlign: 'left', fontSize: '0.82rem'
+                }}
+              >
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{s.name}</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
+                  {s.package_grams}g · {formatCurrency(s.package_cost)}
+                </span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        );
+      })()}
+
       {/* Final Calculations */}
       <div style={{
         background: 'var(--bg-card)',
@@ -615,12 +749,12 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(33, 150, 243, 0.1)' }}>
             <span style={{ fontWeight: 'bold' }}>Rendimento (unidades) <strong>(F)</strong></span>
             <input
-              type="number"
-              value={yieldQuantity || ''}
-              onChange={(e) => setYieldQuantity(parseInt(e.target.value) || 0)}
+              type="text"
+              inputMode="numeric"
+              value={yieldQuantity ? String(yieldQuantity) : ''}
+              onChange={(e) => setYieldQuantity(parseInt(e.target.value.replace(',', '.')) || 0)}
               className="excel-input-cell"
               style={{ width: '80px' }}
-              min="1"
             />
           </div>
 
@@ -634,13 +768,13 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(33, 150, 243, 0.1)' }}>
             <span>Preço Embalagem Individual</span>
             <input
-              type="number"
-              value={packagingCost || ''}
-              onChange={(e) => setPackagingCost(parseFloat(e.target.value) || 0)}
+              type="text"
+              inputMode="decimal"
+              value={packagingCost ? String(packagingCost).replace('.', ',') : ''}
+              onChange={(e) => setPackagingCost(parseNumber(e.target.value))}
               className="excel-input-cell"
               style={{ width: '100px' }}
-              min="0"
-              step="0.01"
+              placeholder="0,00"
             />
           </div>
 

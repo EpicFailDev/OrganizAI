@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../supabaseClient';
 import { X, Edit3, Trash2, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../utils';
@@ -88,13 +89,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     };
   }, []);
 
-  const [date, setDate] = useState(transaction.date);
+  const [date, setDate] = useState(transaction.date || '');
   const [time, setTime] = useState(transaction.time || '');
-  const [type, setType] = useState(transaction.type);
-  const [description, setDescription] = useState(transaction.description);
-  const [categoryId, setCategoryId] = useState(transaction.category_id);
+  const [type, setType] = useState<'income' | 'expense'>(transaction.type || 'expense');
+  const [description, setDescription] = useState(transaction.description || '');
+  const [categoryId, setCategoryId] = useState(transaction.category_id || '');
   const [subcategoryId, setSubcategoryId] = useState(transaction.subcategory_id || '');
-  const [amount, setAmount] = useState(transaction.amount.toString().replace('.', ','));
+  const [amount, setAmount] = useState(String(transaction.amount ?? 0).replace('.', ','));
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
 
   const attachmentUrl = useSignedAttachmentUrl(transaction.attachment_url);
@@ -127,13 +128,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   }, [isEditing]);
 
   const handleCancelEdit = () => {
-    setDate(transaction.date);
+    setDate(transaction.date || '');
     setTime(transaction.time || '');
-    setType(transaction.type);
-    setDescription(transaction.description);
-    setCategoryId(transaction.category_id);
+    setType(transaction.type || 'expense');
+    setDescription(transaction.description || '');
+    setCategoryId(transaction.category_id || '');
     setSubcategoryId(transaction.subcategory_id || '');
-    setAmount(transaction.amount.toString().replace('.', ','));
+    setAmount(String(transaction.amount ?? 0).replace('.', ','));
     setErrorMsg('');
     setIsEditing(false);
   };
@@ -187,7 +188,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     </div>
   );
 
-  return (
+  return createPortal(
     <div className={`ios-sheet-overlay ${mounted ? 'open' : ''}`} onClick={onClose}>
       <div
         className="ios-sheet"
@@ -436,6 +437,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
