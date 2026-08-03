@@ -77,12 +77,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
       });
   }, [familyId]);
 
+  // Parse 'YYYY-MM-DD' como data LOCAL. new Date('2026-08-01') é tratado como UTC
+  // e no Brasil (UTC-3) vira 31/07 21:00, jogando o dia 1º para o mês anterior.
+  const parseLocalDate = (value: string) => {
+    const s = String(value);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const d = new Date(s);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  };
+
   const currentMonthTransactions = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     return transactions.filter(t => {
-      const d = new Date(t.date);
+      const d = parseLocalDate(t.date);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
   }, [transactions]);
@@ -107,15 +117,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [transactions]);
 
   const cashFlowData = useMemo(() => {
-    // Parse 'YYYY-MM-DD' como data LOCAL (new Date(str) trata como UTC e desloca o dia no BR)
-    const parseLocal = (value: string) => {
-      const s = String(value);
-      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-      const d = new Date(s);
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    };
-
     // Início da semana atual (segunda-feira)
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -127,7 +128,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const data = labels.map((name) => ({ name, Receita: 0, Despesa: 0 }));
 
     transactions.forEach((t) => {
-      const d = parseLocal(t.date);
+      const d = parseLocalDate(t.date);
       const diffDays = Math.floor((d.getTime() - monday.getTime()) / 86400000);
       if (diffDays < 0 || diffDays > 6) return; // fora da semana atual
       const amt = Number(t.amount);
@@ -164,12 +165,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const recentList = useMemo(() => {
     const list = [...currentMonthTransactions]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
       .slice(0, 5);
     return list.map(t => ({
       id: t.id,
       description: t.description,
-      date: new Date(t.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }),
+      date: parseLocalDate(t.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }),
       type: t.type,
       amount: Number(t.amount),
       color: t.categories?.color || '#8e8e93',
