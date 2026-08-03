@@ -107,28 +107,40 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [transactions]);
 
   const cashFlowData = useMemo(() => {
-    const data = [
-      { name: 'Sem 1', Receita: 0, Despesa: 0 },
-      { name: 'Sem 2', Receita: 0, Despesa: 0 },
-      { name: 'Sem 3', Receita: 0, Despesa: 0 },
-      { name: 'Sem 4', Receita: 0, Despesa: 0 },
-    ];
-    currentMonthTransactions.forEach(t => {
+    // Parse 'YYYY-MM-DD' como data LOCAL (new Date(str) trata como UTC e desloca o dia no BR)
+    const parseLocal = (value: string) => {
+      const s = String(value);
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      const d = new Date(s);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    };
+
+    // Início da semana atual (segunda-feira)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dow = today.getDay(); // 0=dom
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+
+    const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const data = labels.map((name) => ({ name, Receita: 0, Despesa: 0 }));
+
+    transactions.forEach((t) => {
+      const d = parseLocal(t.date);
+      const diffDays = Math.floor((d.getTime() - monday.getTime()) / 86400000);
+      if (diffDays < 0 || diffDays > 6) return; // fora da semana atual
       const amt = Number(t.amount);
-      const day = new Date(t.date).getDate();
-      let index = 3;
-      if (day <= 7) index = 0;
-      else if (day <= 14) index = 1;
-      else if (day <= 21) index = 2;
-      if (t.type === 'income') data[index].Receita += amt;
-      else data[index].Despesa += amt;
+      if (t.type === 'income') data[diffDays].Receita += amt;
+      else data[diffDays].Despesa += amt;
     });
-    return data.map(d => ({
+
+    return data.map((d) => ({
       ...d,
       Receita: Math.round(d.Receita),
       Despesa: Math.round(d.Despesa),
     }));
-  }, [currentMonthTransactions]);
+  }, [transactions]);
 
   const donutChartData = useMemo(() => {
     const expenseMap: Record<string, { name: string; value: number; color: string }> = {};
@@ -250,11 +262,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div style={{ display: 'flex', gap: '1rem', padding: '0 0.75rem 0.5rem', fontSize: '0.7rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <span style={{ width: 8, height: 2, background: '#30d158', borderRadius: 2 }} />
-              Receita Mensal
+              Receita Diária
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <span style={{ width: 8, height: 2, background: '#ff453a', borderRadius: 2 }} />
-              Despesa Mensal
+              Despesa Diária
             </div>
           </div>
           <div style={{ width: '100%', height: 180 }}>
