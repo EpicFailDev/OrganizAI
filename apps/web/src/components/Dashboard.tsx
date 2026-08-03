@@ -20,6 +20,7 @@ import {
   Pie, 
   Cell
 } from 'recharts';
+import { InteractiveMenu } from './InteractiveMenu';
 
 interface Transaction {
   id: string;
@@ -159,6 +160,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <>
+      {/* Interactive Navigation Menu */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+        <InteractiveMenu
+          activeId="dashboard"
+          onItemChange={(id) => onNavigate?.(id)}
+          accentColor="var(--color-secondary, #0a84ff)"
+        />
+      </div>
+
       {/* Balance hero */}
       <div className="ios-kpi-card primary" onClick={() => onNavigate?.('transactions')} style={{ cursor: 'pointer' }}>
         <div className="ios-kpi-header">

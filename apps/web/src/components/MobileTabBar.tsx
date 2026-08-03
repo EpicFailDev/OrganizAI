@@ -1,20 +1,15 @@
 import React from 'react';
 import {
-  LayoutDashboard,
   Receipt,
-  BarChart3,
-  Users,
   Plus,
   Target,
-  Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
   Car,
   Store,
-  Settings,
   Home,
   PieChart,
+  Users
 } from 'lucide-react';
+import { InteractiveMenu, type InteractiveMenuItem } from './InteractiveMenu';
 
 interface MobileTabBarProps {
   currentView: string;
@@ -29,12 +24,12 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   onAddTransactionClick,
   profession
 }) => {
-  const getTabs = () => {
-    const baseTabs = [
+  const getTabs = (): InteractiveMenuItem[] => {
+    const baseTabs: InteractiveMenuItem[] = [
       { id: 'dashboard', label: 'Início', icon: Home },
     ];
 
-    const professionTabs = [];
+    const professionTabs: InteractiveMenuItem[] = [];
     if (profession === 'motorista') {
       professionTabs.push({ id: 'transactions-uber99', label: 'Uber/99', icon: Car });
     } else if (profession === 'vendedor') {
@@ -43,7 +38,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
       professionTabs.push({ id: 'transactions', label: 'Extrato', icon: Receipt });
     }
 
-    const endTabs = [
+    const endTabs: InteractiveMenuItem[] = [
       { id: 'relatorios', label: 'Relatórios', icon: PieChart },
       { id: 'metas', label: 'Metas', icon: Target },
       { id: 'family', label: 'Perfil', icon: Users },
@@ -53,6 +48,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   };
 
   const tabs = getTabs();
+
   const getActiveTab = () => {
     if (currentView === 'dashboard') return 'dashboard';
     if (currentView === 'transactions' || currentView.startsWith('transactions-')) {
@@ -66,29 +62,17 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
     return 'dashboard';
   };
 
-  const active = getActiveTab();
+  const activeId = getActiveTab();
 
   return (
     <>
-      <nav className="ios-tab-bar">
-        <div className="ios-tab-bar-inner">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = active === tab.id;
-            return (
-              <button
-                key={tab.id}
-                className={`ios-tab ${isActive ? 'active' : ''}`}
-                onClick={() => setView(tab.id)}
-              >
-                <div className="ios-tab-icon">
-                  <Icon size={24} strokeWidth={isActive ? 2.2 : 1.6} />
-                </div>
-                <span className="ios-tab-label">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+      <nav className="ios-tab-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <InteractiveMenu
+          items={tabs}
+          activeId={activeId}
+          onItemChange={(id) => setView(id)}
+          accentColor="var(--color-secondary, #0a84ff)"
+        />
       </nav>
 
       {/* Floating Action Button (bottom-right) */}

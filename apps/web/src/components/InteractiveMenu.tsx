@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Home, Receipt, PieChart, Target, Users, Briefcase, Calendar, Shield, Settings } from 'lucide-react';
+import { Home, Receipt, PieChart, Target, Users } from 'lucide-react';
 
 type IconComponentType = React.ElementType<{ className?: string }>;
 
@@ -36,7 +36,6 @@ const InteractiveMenu: React.FC<InteractiveMenuProps> = ({
     const isValid = items && Array.isArray(items) && items.length >= 2 && items.length <= 5;
     if (!isValid) {
       if (items && Array.isArray(items) && items.length > 0) {
-        // If items are provided but not strictly 2-5, warning logged as per spec, fallback to default
         console.warn("InteractiveMenu: 'items' prop is invalid or missing. Using default items.", items);
       }
       return defaultItems;
@@ -115,7 +114,9 @@ const InteractiveMenu: React.FC<InteractiveMenuProps> = ({
             key={item.id || item.label}
             className={`menu__item ${isActive ? 'active' : ''}`}
             onClick={() => handleItemClick(index)}
-            ref={(el) => (itemRefs.current[index] = el)}
+            ref={(el) => {
+              itemRefs.current[index] = el;
+            }}
             style={{ '--lineWidth': '0px' } as React.CSSProperties}
           >
             <div className="menu__icon">
@@ -123,7 +124,9 @@ const InteractiveMenu: React.FC<InteractiveMenuProps> = ({
             </div>
             <strong
               className={`menu__text ${isTextActive ? 'active' : ''}`}
-              ref={(el) => (textRefs.current[index] = el)}
+              ref={(el) => {
+                textRefs.current[index] = el;
+              }}
             >
               {item.label}
             </strong>
