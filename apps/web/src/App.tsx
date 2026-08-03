@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { MobileTabBar } from './components/MobileTabBar';
 import { MobileHeader } from './components/MobileHeader';
 import { ViewStack } from './components/ViewStack';
+import { AppSettingsProvider } from './AppSettings';
 import { Loader2, Users, Menu } from 'lucide-react';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { Onboarding, isOnboardingComplete } from './components/Onboarding';
@@ -20,6 +21,8 @@ const Planejamento = lazy(() => import('./components/Planejamento').then(m => ({
 const Relatorios = lazy(() => import('./components/Relatorios').then(m => ({ default: m.Relatorios })));
 const Calendario = lazy(() => import('./components/Calendario').then(m => ({ default: m.Calendario })));
 const Uber99Dashboard = lazy(() => import('./components/Uber99Dashboard').then(m => ({ default: m.Uber99Dashboard })));
+const Vendas = lazy(() => import('./components/Vendas').then(m => ({ default: m.Vendas })));
+const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 
 interface Profile {
   id: string;
@@ -279,6 +282,14 @@ function App() {
     }
   }, [session?.user?.id, fetchProfileAndFamily]);
 
+  const handleRefreshProfile = handleRefreshFamily;
+
+  const handleLogout = useCallback(async () => {
+    if (!window.confirm('Deseja realmente sair da sua conta?')) return;
+    await supabase.auth.signOut();
+    setSession(null);
+  }, []);
+
   const handleRefreshCategories = useCallback(async () => {
     await fetchFinancialData();
   }, [fetchFinancialData]);
@@ -304,6 +315,13 @@ function App() {
     setView(target);
   }, []);
 
+  // Interactive swipe-back (edge gesture) — returns to the previous screen.
+  const handleBack = useCallback((target: string) => {
+    prevViewRef.current = target;
+    setViewDirection('back');
+    setView(target);
+  }, []);
+
   // Determine mobile header title
   const getHeaderTitle = () => {
     switch (view) {
@@ -313,6 +331,7 @@ function App() {
       case 'transactions-saidas': return 'Saídas';
       case 'transactions-salgados': return 'Salgados';
       case 'transactions-uber99': return 'Uber / 99';
+      case 'vendas': return 'Vendas';
       case 'categories': return 'Configurações';
       case 'family': return 'Família';
       case 'orcamentos': return 'Orçamentos';
@@ -361,10 +380,18 @@ function App() {
             familyMembers={familyMembers}
             onNavigate={handleViewChange}
             profession={profile?.profession}
+            familyId={familyId || ''}
           />
         )}
         {v === 'transactions-uber99' && (
           <Uber99Dashboard transactions={transactions} />
+        )}
+        {v === 'vendas' && (
+          <Vendas
+            familyId={familyId || ''}
+            userId={session.user.id}
+            transactions={transactions}
+          />
         )}
         {v.startsWith('transactions') && v !== 'transactions-uber99' && (
           <TransactionsList
@@ -383,9 +410,17 @@ function App() {
           />
         )}
         {v === 'categories' && (
-          <CategoryManager
+          <Settings
+            profileId={profile?.id || ''}
+            initialName={profile?.display_name || ''}
+            initialProfession={profile?.profession}
+            familyId={familyId}
+            familyName={familyName}
+            userId={session.user.id}
+            onRefreshProfile={handleRefreshProfile}
+            onRefreshFamily={handleRefreshFamily}
+            onLogout={handleLogout}
             categories={categories}
-            familyId={familyId || ''}
             onRefreshCategories={handleRefreshCategories}
           />
         )}
@@ -433,6 +468,7 @@ function App() {
   }
 
   return (
+    <AppSettingsProvider>
     <div className="ios-app">
       {/* Mobile Header (visible on mobile only via CSS) */}
       <MobileHeader
@@ -469,7 +505,7 @@ function App() {
 
       {/* Main scrollable content */}
       <main className="ios-content" ref={contentRef}>
-        <ViewStack view={view} direction={viewDirection}>
+        <ViewStack view={view} direction={viewDirection} onBack={handleBack}>
           {renderViewFor(view)}
         </ViewStack>
       </main>
@@ -503,6 +539,7 @@ function App() {
         <Onboarding onComplete={() => setShowOnboarding(false)} />
       )}
     </div>
+    </AppSettingsProvider>
   );
 }
 

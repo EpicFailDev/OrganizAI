@@ -1,0 +1,745 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { 
+  Save, 
+  Plus, 
+  Trash2, 
+  Check,
+  Loader2
+} from 'lucide-react';
+import { supabase } from '../supabaseClient';
+
+interface RecipeItem {
+  id: string;
+  ingredient_name: string;
+  package_grams: number;
+  package_cost: number;
+  used_grams: number;
+}
+
+interface Recipe {
+  id: string;
+  name: string;
+  yield_quantity: number;
+  packaging_cost: number;
+  notes?: string;
+  created_at: string;
+}
+
+interface PricingCalculatorProps {
+  familyId: string;
+  userId: string;
+}
+
+const generateId = () => Math.random().toString(36).substring(2, 15);
+
+const formatCurrency = (value: number) => 
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
+  familyId,
+  userId
+}) => {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
+  const [recipeName, setRecipeName] = useState('Nova Receita');
+  const [pricingDate, setPricingDate] = useState(
+    new Date().toLocaleDateString('pt-BR')
+  );
+  const [yieldQuantity, setYieldQuantity] = useState(10);
+  const [packagingCost, setPackagingCost] = useState(0);
+  const [notes, setNotes] = useState('');
+  
+  const [items, setItems] = useState<RecipeItem[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch recipes from Supabase
+  const fetchRecipes = useCallback(async () => {
+    if (!familyId) return;
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from('pricing_recipes')
+      .select('*')
+      .eq('family_id', familyId)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setRecipes(data);
+      // Select first recipe if none selected
+      if (!selectedRecipeId && data.length > 0) {
+        setSelectedRecipeId(data[0].id);
+      }
+    }
+    setLoading(false);
+  }, [familyId, selectedRecipeId]);
+
+  // Fetch recipe items when recipe is selected
+  const fetchRecipeItems = useCallback(async () => {
+    if (!selectedRecipeId) {
+      setItems([]);
+      return;
+    }
+
+    const { data: recipe } = await supabase
+      .from('pricing_recipes')
+      .select('*')
+      .eq('id', selectedRecipeId)
+      .single();
+
+    if (recipe) {
+      setRecipeName(recipe.name);
+      setYieldQuantity(recipe.yield_quantity);
+      setPackagingCost(recipe.packaging_cost);
+      setNotes(recipe.notes || '');
+    }
+
+    const { data: itemsData } = await supabase
+      .from('recipe_items')
+      .select('*')
+      .eq('recipe_id', selectedRecipeId)
+      .order('sort_order', { ascending: true });
+
+    if (itemsData) {
+      setItems(itemsData);
+    }
+  }, [selectedRecipeId]);
+
+  useEffect(() => {
+    fetchRecipes();
+  }, [familyId]);
+
+  useEffect(() => {
+    fetchRecipeItems();
+  }, [selectedRecipeId]);
+
+  // Create new recipe
+  const createNewRecipe = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('pricing_recipes')
+      .insert({
+        family_id: familyId,
+        name: 'Nova Receita',
+        created_by: userId,
+        yield_quantity: 10,
+        packaging_cost: 0
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setRecipes(prev => [data, ...prev]);
+      setSelectedRecipeId(data.id);
+    }
+  }, [familyId, userId]);
+
+  const calculations = useMemo(() => {
+    const itemsWithCost = items.map(item => {
+      const costPerGram = item.package_grams > 0 
+        ? item.package_cost / item.package_grams 
+        : 0;
+      const ingredientCost = costPerGram * item.used_grams;
+      return { ...item, costPerGram, ingredientCost };
+    });
+
+    const totalIngredients = itemsWithCost.reduce(
+      (sum, item) => sum + item.ingredientCost, 0
+    );
+    const fixedCosts = totalIngredients * 0.25;
+    const withFixedCosts = totalIngredients + fixedCosts;
+    const withProfit = withFixedCosts * 3;
+    const pricePerUnit = yieldQuantity > 0 ? withProfit / yieldQuantity : 0;
+    const finalPrice = pricePerUnit + packagingCost;
+
+    return {
+      itemsWithCost,
+      totalIngredients,
+      fixedCosts,
+      withFixedCosts,
+      withProfit,
+      pricePerUnit,
+      finalPrice
+    };
+  }, [items, yieldQuantity, packagingCost]);
+
+  // Save recipe
+  const saveRecipe = useCallback(async () => {
+    if (!selectedRecipeId) return;
+    setSaving(true);
+
+    // Update recipe metadata
+    await supabase
+      .from('pricing_recipes')
+      .update({
+        name: recipeName,
+        yield_quantity: yieldQuantity,
+        packaging_cost: packagingCost,
+        notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', selectedRecipeId);
+
+    // Delete existing items
+    await supabase
+      .from('recipe_items')
+      .delete()
+      .eq('recipe_id', selectedRecipeId);
+
+    // Insert new items
+    if (items.length > 0) {
+      const itemsToInsert = items.map((item, index) => ({
+        recipe_id: selectedRecipeId,
+        ingredient_name: item.ingredient_name,
+        package_grams: item.package_grams,
+        package_cost: item.package_cost,
+        used_grams: item.used_grams,
+        sort_order: index
+      }));
+
+      await supabase
+        .from('recipe_items')
+        .insert(itemsToInsert);
+    }
+
+    // Update products cost price if linked
+    const totalCost = calculations.totalIngredients;
+    const costPerUnit = yieldQuantity > 0 ? totalCost / yieldQuantity : 0;
+
+    await supabase
+      .from('products')
+      .update({ 
+        cost_price: costPerUnit,
+        updated_at: new Date().toISOString()
+      })
+      .eq('recipe_id', selectedRecipeId);
+
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+
+    // Refresh recipes list
+    fetchRecipes();
+  }, [selectedRecipeId, recipeName, yieldQuantity, packagingCost, notes, items, calculations, fetchRecipes]);
+
+  // Delete recipe
+  const deleteRecipe = useCallback(async () => {
+    if (!selectedRecipeId) return;
+    if (!confirm('Tem certeza que deseja excluir esta receita?')) return;
+
+    await supabase
+      .from('pricing_recipes')
+      .delete()
+      .eq('id', selectedRecipeId);
+
+    setSelectedRecipeId(null);
+    fetchRecipes();
+  }, [selectedRecipeId, fetchRecipes]);
+
+  const addItem = useCallback(() => {
+    setItems(prev => [...prev, {
+      id: generateId(),
+      ingredient_name: '',
+      package_grams: 0,
+      package_cost: 0,
+      used_grams: 0
+    }]);
+  }, []);
+
+  const removeItem = useCallback((id: string) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  const updateItem = useCallback((id: string, field: keyof RecipeItem, value: string | number) => {
+    setItems(prev => prev.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  }, []);
+
+
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <Loader2 size={24} className="spinner" />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: '1.5rem',
+      maxWidth: '1200px',
+      margin: '0 auto'
+    }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, #e91e63 0%, #f44336 100%)',
+        padding: '1.5rem',
+        borderRadius: '12px',
+        color: 'white',
+        textAlign: 'center',
+        boxShadow: '0 4px 12px rgba(233, 30, 99, 0.3)'
+      }}>
+        <h1 style={{ 
+          margin: 0, 
+          fontStyle: 'italic',
+          fontSize: '1.75rem',
+          fontWeight: 700
+        }}>
+          ** Calculadora de Precificação **
+        </h1>
+      </div>
+
+      {/* Instructions */}
+      <div style={{
+        background: '#fff3e0',
+        padding: '1rem',
+        border: '2px dashed #ff9800',
+        borderRadius: '8px',
+        textAlign: 'center',
+        fontSize: '0.95rem',
+        color: '#333'
+      }}>
+        Complete <strong style={{ color: '#2196f3' }}>somente</strong> as{' '}
+        <span style={{ color: '#2196f3', fontWeight: 'bold' }}>células em azul</span>,
+        a tabela faz o resto!
+        <span style={{ 
+          float: 'right', 
+          color: '#e91e63',
+          fontWeight: 'bold',
+          fontStyle: 'italic'
+        }}>
+          {'>>> Vá até o final da página para ler as instruções'}
+        </span>
+      </div>
+
+      {/* Recipe Selector */}
+      <div style={{
+        display: 'flex',
+        gap: '1rem',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        background: 'var(--bg-card)',
+        padding: '1rem',
+        borderRadius: '8px',
+        border: '1px solid var(--border-color)'
+      }}>
+        <div style={{ flex: 1, minWidth: '200px' }}>
+          <label style={{ 
+            display: 'block', 
+            fontSize: '0.78rem', 
+            fontWeight: 600, 
+            color: 'var(--text-secondary)',
+            marginBottom: '0.25rem'
+          }}>
+            RECEITA:
+          </label>
+          <select
+            value={selectedRecipeId || ''}
+            onChange={(e) => setSelectedRecipeId(e.target.value || null)}
+            style={{
+              width: '100%',
+              background: 'rgba(118, 118, 128, 0.12)',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '0.75rem',
+              color: 'var(--text-primary)',
+              fontSize: '0.95rem'
+            }}
+          >
+            <option value="">Selecione uma receita...</option>
+            {recipes.map(r => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          onClick={createNewRecipe}
+          style={{
+            background: 'rgba(33, 150, 243, 0.1)',
+            border: '1px solid rgba(33, 150, 243, 0.3)',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            color: '#2196f3',
+            fontWeight: 'bold',
+            marginTop: '1.5rem'
+          }}
+        >
+          <Plus size={16} />
+          Nova
+        </button>
+
+        {selectedRecipeId && (
+          <button
+            onClick={deleteRecipe}
+            style={{
+              background: 'rgba(244, 67, 54, 0.1)',
+              border: '1px solid rgba(244, 67, 54, 0.3)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#f44336',
+              fontWeight: 'bold',
+              marginTop: '1.5rem'
+            }}
+          >
+            <Trash2 size={16} />
+            Excluir
+          </button>
+        )}
+      </div>
+
+      {/* Recipe Info */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '1rem',
+        background: 'var(--bg-card)',
+        padding: '1rem',
+        borderRadius: '8px',
+        border: '1px solid var(--border-color)'
+      }}>
+        <div>
+          <label style={{ 
+            display: 'block', 
+            fontSize: '0.78rem', 
+            fontWeight: 600, 
+            color: 'var(--text-secondary)',
+            marginBottom: '0.25rem'
+          }}>
+            Nome da Receita:
+          </label>
+          <input
+            type="text"
+            value={recipeName}
+            onChange={(e) => setRecipeName(e.target.value)}
+            className="excel-input-cell"
+            style={{ width: '100%' }}
+          />
+        </div>
+        <div>
+          <label style={{ 
+            display: 'block', 
+            fontSize: '0.78rem', 
+            fontWeight: 600, 
+            color: 'var(--text-secondary)',
+            marginBottom: '0.25rem'
+          }}>
+            Data:
+          </label>
+          <input
+            type="text"
+            value={pricingDate}
+            onChange={(e) => setPricingDate(e.target.value)}
+            className="excel-input-cell"
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+
+      {/* Main Table */}
+      <div style={{
+        background: 'var(--bg-card)',
+        borderRadius: '8px',
+        border: '1px solid var(--border-color)',
+        overflow: 'hidden'
+      }}>
+        {/* Table Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #e91e63 0%, #f44336 100%)',
+          padding: '0.75rem',
+          display: 'grid',
+          gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 60px',
+          gap: '0.5rem',
+          color: 'white',
+          fontWeight: 'bold',
+          fontSize: '0.8rem',
+          textAlign: 'center'
+        }}>
+          <div>Ingredientes (A)</div>
+          <div>Custo Embalagem (B)</div>
+          <div>Gramas Embalagem (C)</div>
+          <div>Gramas Utilizadas (D)</div>
+          <div>Quanto Custou (E)</div>
+          <div></div>
+        </div>
+
+        {/* Table Body */}
+        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          {calculations.itemsWithCost.map((item, index) => (
+            <div 
+              key={item.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 60px',
+                gap: '0.5rem',
+                padding: '0.5rem',
+                borderBottom: '1px solid var(--border-color)',
+                background: index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
+                alignItems: 'center'
+              }}
+            >
+              <input
+                type="text"
+                value={item.ingredient_name}
+                onChange={(e) => updateItem(item.id, 'ingredient_name', e.target.value)}
+                className="excel-input-cell"
+                placeholder="Ingrediente"
+              />
+              <input
+                type="number"
+                value={item.package_cost || ''}
+                onChange={(e) => updateItem(item.id, 'package_cost', parseFloat(e.target.value) || 0)}
+                className="excel-input-cell"
+                min="0"
+                step="0.01"
+              />
+              <input
+                type="number"
+                value={item.package_grams || ''}
+                onChange={(e) => updateItem(item.id, 'package_grams', parseFloat(e.target.value) || 0)}
+                className="excel-input-cell"
+                min="0"
+              />
+              <input
+                type="number"
+                value={item.used_grams || ''}
+                onChange={(e) => updateItem(item.id, 'used_grams', parseFloat(e.target.value) || 0)}
+                className="excel-input-cell"
+                min="0"
+              />
+              <div className="excel-readonly-cell" style={{ 
+                fontWeight: 'bold',
+                color: 'var(--color-primary)'
+              }}>
+                {formatCurrency(item.ingredientCost)}
+              </div>
+              <button
+                onClick={() => removeItem(item.id)}
+                style={{
+                  background: 'rgba(244, 67, 54, 0.1)',
+                  border: '1px solid rgba(244, 67, 54, 0.3)',
+                  borderRadius: '4px',
+                  padding: '0.4rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#f44336'
+                }}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Add Item Button */}
+        <div style={{
+          padding: '0.75rem',
+          borderTop: '1px solid var(--border-color)',
+          display: 'flex',
+          justifyContent: 'center'
+        }}>
+          <button
+            onClick={addItem}
+            style={{
+              background: 'rgba(33, 150, 243, 0.1)',
+              border: '1px solid rgba(33, 150, 243, 0.3)',
+              borderRadius: '8px',
+              padding: '0.6rem 1.25rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#2196f3',
+              fontWeight: 'bold'
+            }}
+          >
+            <Plus size={16} />
+            Adicionar Ingrediente
+          </button>
+        </div>
+      </div>
+
+      {/* Final Calculations */}
+      <div style={{
+        background: 'var(--bg-card)',
+        borderRadius: '8px',
+        border: '1px solid var(--border-color)',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #e91e63 0%, #f44336 100%)',
+          padding: '1rem',
+          color: 'white',
+          fontWeight: 'bold',
+          textAlign: 'center'
+        }}>
+          Contas Finais
+        </div>
+
+        <div style={{ padding: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem', borderBottom: '1px solid var(--border-color)' }}>
+            <span style={{ fontWeight: 'bold' }}>Total Custo de Ingredientes</span>
+            <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
+              {formatCurrency(calculations.totalIngredients)}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem', borderBottom: '1px solid var(--border-color)' }}>
+            <span>Adiciona 25% (gás, luz, etc)</span>
+            <span style={{ fontWeight: 'bold', color: '#ff9800' }}>
+              {formatCurrency(calculations.withFixedCosts)}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem', borderBottom: '1px solid var(--border-color)' }}>
+            <span>Multiplica por 3 (lucro + mão de obra)</span>
+            <span style={{ fontWeight: 'bold', color: '#e91e63' }}>
+              {formatCurrency(calculations.withProfit)}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(33, 150, 243, 0.1)' }}>
+            <span style={{ fontWeight: 'bold' }}>Rendimento (unidades) <strong>(F)</strong></span>
+            <input
+              type="number"
+              value={yieldQuantity || ''}
+              onChange={(e) => setYieldQuantity(parseInt(e.target.value) || 0)}
+              className="excel-input-cell"
+              style={{ width: '80px' }}
+              min="1"
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem', borderBottom: '1px solid var(--border-color)' }}>
+            <span>Preço por Unidade</span>
+            <span style={{ fontWeight: 'bold', color: '#4caf50' }}>
+              {formatCurrency(calculations.pricePerUnit)}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(33, 150, 243, 0.1)' }}>
+            <span>Preço Embalagem Individual</span>
+            <input
+              type="number"
+              value={packagingCost || ''}
+              onChange={(e) => setPackagingCost(parseFloat(e.target.value) || 0)}
+              className="excel-input-cell"
+              style={{ width: '100px' }}
+              min="0"
+              step="0.01"
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.1) 100%)', borderRadius: '0 0 8px 8px', border: '2px solid #4caf50' }}>
+            <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Preço final de venda por unidade</span>
+            <span style={{ fontWeight: 'bold', fontSize: '1.25rem', color: '#4caf50' }}>
+              {formatCurrency(calculations.finalPrice)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button
+          onClick={saveRecipe}
+          disabled={!selectedRecipeId || saving}
+          style={{
+            background: saved ? '#4caf50' : 'var(--color-primary)',
+            color: '#000',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '0.75rem 1.5rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontWeight: 'bold',
+            opacity: !selectedRecipeId || saving ? 0.5 : 1
+          }}
+        >
+          {saving ? <Loader2 size={18} className="spinner" /> : saved ? <Check size={18} /> : <Save size={18} />}
+          {saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar Receita'}
+        </button>
+      </div>
+
+      {/* Notes */}
+      <div style={{
+        background: 'var(--bg-card)',
+        borderRadius: '8px',
+        border: '1px solid var(--border-color)',
+        padding: '1rem'
+      }}>
+        <label style={{ 
+          display: 'block', 
+          fontSize: '0.78rem', 
+          fontWeight: 600, 
+          color: 'var(--text-secondary)',
+          marginBottom: '0.5rem'
+        }}>
+          Observações:
+        </label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Adicione observações sobre esta receita..."
+          style={{
+            width: '100%',
+            minHeight: '80px',
+            background: 'rgba(118, 118, 128, 0.12)',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '0.75rem',
+            color: 'var(--text-primary)',
+            fontSize: '0.9rem',
+            resize: 'vertical'
+          }}
+        />
+      </div>
+
+      {/* CSS for Excel-like cells */}
+      <style>{`
+        .excel-input-cell {
+          background: #e3f2fd !important;
+          border: 1px solid #2196f3 !important;
+          padding: 0.5rem !important;
+          text-align: center !important;
+          font-family: 'Arial', sans-serif !important;
+          font-size: 0.85rem !important;
+          border-radius: 4px !important;
+          transition: all 0.2s !important;
+          color: #333 !important;
+        }
+        .excel-input-cell:focus {
+          outline: none !important;
+          box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3) !important;
+          background: #bbdefb !important;
+        }
+        .excel-readonly-cell {
+          background: rgba(255,255,255,0.05) !important;
+          padding: 0.5rem !important;
+          text-align: center !important;
+          font-family: 'Arial', sans-serif !important;
+          font-size: 0.85rem !important;
+          border: 1px solid var(--border-color) !important;
+          border-radius: 4px !important;
+          color: var(--text-primary) !important;
+        }
+      `}</style>
+    </div>
+  );
+};

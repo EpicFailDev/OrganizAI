@@ -7,7 +7,8 @@ import {
   Store,
   Home,
   PieChart,
-  Users
+  Users,
+  Calculator
 } from 'lucide-react';
 import { InteractiveMenu, type InteractiveMenuItem } from './InteractiveMenu';
 
@@ -34,6 +35,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
       professionTabs.push({ id: 'transactions-uber99', label: 'Uber/99', icon: Car });
     } else if (profession === 'vendedor') {
       professionTabs.push({ id: 'transactions-salgados', label: 'Salgados', icon: Store });
+      professionTabs.push({ id: 'vendas', label: 'Precificar', icon: Calculator });
     } else {
       professionTabs.push({ id: 'transactions', label: 'Extrato', icon: Receipt });
     }
@@ -56,6 +58,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
       if (profession === 'vendedor') return 'transactions-salgados';
       return 'transactions';
     }
+    if (currentView === 'vendas') return 'vendas';
     if (currentView === 'relatorios') return 'relatorios';
     if (currentView === 'metas') return 'metas';
     if (currentView === 'family') return 'family';

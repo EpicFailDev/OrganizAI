@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Wallet, 
   TrendingUp, 
@@ -9,8 +9,10 @@ import {
   ChevronRight,
   Download,
 } from 'lucide-react';
-import { 
-  AreaChart, 
+import { useAppSettings } from '../AppSettings';
+import { supabase } from '../supabaseClient';
+import {
+  AreaChart,
   Area, 
   XAxis, 
   YAxis, 
@@ -20,6 +22,7 @@ import {
   Pie, 
   Cell
 } from 'recharts';
+
 interface Transaction {
   id: string;
   date: string;
@@ -32,12 +35,22 @@ interface Transaction {
   profiles?: { display_name: string };
 }
 
+interface Goal {
+  id: string;
+  family_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  status: 'active' | 'completed' | 'cancelled';
+}
+
 interface DashboardProps {
   transactions: Transaction[];
   profileName?: string;
   familyMembers?: string[];
   onNavigate?: (view: string) => void;
   profession?: string;
+  familyId?: string;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -45,9 +58,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
   profileName,
   familyMembers = [],
   onNavigate,
-  profession
+  profession,
+  familyId
 }) => {
+  const { formatCurrency } = useAppSettings();
   const name = profileName || 'Usuário';
+
+  const [goals, setGoals] = useState<Goal[]>([]);
+
+  useEffect(() => {
+    if (!familyId) return;
+    supabase
+      .from('goals')
+      .select('*')
+      .eq('family_id', familyId)
+      .then(({ data }) => {
+        setGoals(data || []);
+      });
+  }, [familyId]);
 
   const currentMonthTransactions = useMemo(() => {
     const now = new Date();
@@ -144,17 +172,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }));
   }, [currentMonthTransactions]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency', currency: 'BRL',
-    }).format(value);
-  };
+  const activeGoals = useMemo(() => goals.filter(g => g.status === 'active'), [goals]);
 
-  const budgetPercentage = useMemo(() => {
-    const limit = 3500;
-    if (stats.expense <= 0) return 0;
-    return Math.min(Math.round((stats.expense / limit) * 100), 100);
-  }, [stats]);
+  const goalSummary = useMemo(() => {
+    if (activeGoals.length === 0) {
+      return {
+        title: 'Meta do Mês',
+        current: 0,
+        target: 0,
+        percentage: 0,
+        hasGoals: false
+      };
+    }
+    const totalCurrent = activeGoals.reduce((sum, g) => sum + Number(g.current_amount || 0), 0);
+    const totalTarget = activeGoals.reduce((sum, g) => sum + Number(g.target_amount || 0), 0);
+    const percentage = totalTarget > 0 ? Math.min(100, Math.round((totalCurrent / totalTarget) * 100)) : 0;
+    const title = activeGoals.length === 1 ? `Meta: ${activeGoals[0].name}` : 'Progresso das Metas';
+
+    return {
+      title,
+      current: totalCurrent,
+      target: totalTarget,
+      percentage,
+      hasGoals: true
+    };
+  }, [activeGoals]);
 
   return (
     <>
@@ -316,23 +358,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TargetIcon size={16} color="var(--color-meta)" />
-              <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Meta do Mês</span>
+              <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>{goalSummary.title}</span>
             </div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{budgetPercentage}%</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{goalSummary.percentage}%</span>
           </div>
           <div style={{
             width: '100%', height: 6, borderRadius: 3,
             background: 'rgba(255, 255, 255, 0.06)', overflow: 'hidden'
           }}>
             <div style={{
-              width: `${budgetPercentage}%`, height: '100%', borderRadius: 3,
-              background: budgetPercentage > 90 ? '#ff453a' : 'var(--color-meta)',
+              width: `${goalSummary.percentage}%`, height: '100%', borderRadius: 3,
+              background: goalSummary.percentage >= 100 ? '#30d158' : 'var(--color-meta)',
               transition: 'width 0.6s ease',
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>R$ 0</span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>R$ 3.500</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
+              {formatCurrency(goalSummary.current)}
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
+              {goalSummary.hasGoals ? formatCurrency(goalSummary.target) : 'Definir Meta'}
+            </span>
           </div>
         </div>
       </div>

@@ -14,7 +14,8 @@ import {
   Calendar,
   Users,
   X,
-  LogOut
+  LogOut,
+  Calculator
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -47,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       professionItems.push({ id: 'uber99', name: 'Uber / 99', icon: <Car size={18} /> });
     } else if (profession === 'vendedor') {
       professionItems.push({ id: 'salgados', name: 'Salgados (Vendas)', icon: <Store size={18} /> });
+      professionItems.push({ id: 'vendas', name: 'Calculadora', icon: <Calculator size={18} /> });
     } else {
       professionItems.push({ id: 'entradas', name: 'Entradas', icon: <ArrowUpRight size={18} /> });
       professionItems.push({ id: 'saidas', name: 'Saídas', icon: <ArrowDownRight size={18} /> });

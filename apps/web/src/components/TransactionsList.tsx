@@ -83,15 +83,8 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   const searchTerm = useDeferredValue(searchInput);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedType, setSelectedType] = useState<'income' | 'expense' | 'all'>(presetType);
-  const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const now = new Date();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
@@ -123,8 +116,9 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
       const matchCategory = selectedCategory === '' || t.category_id === selectedCategory;
       const matchType = selectedType === 'all' || t.type === selectedType;
       let matchDate = true;
-      if (startDate) matchDate = new Date(t.date) >= new Date(startDate);
-      if (matchDate && endDate) matchDate = new Date(t.date) <= new Date(endDate);
+      const tDate = t.date ? t.date.split('T')[0] : '';
+      if (startDate) matchDate = tDate >= startDate;
+      if (matchDate && endDate) matchDate = tDate <= endDate;
       return matchSearch && matchCategory && matchType && matchDate;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, searchTerm, selectedCategory, selectedType, startDate, endDate]);
