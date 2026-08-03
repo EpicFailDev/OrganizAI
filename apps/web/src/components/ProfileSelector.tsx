@@ -13,6 +13,8 @@ interface ProfileOption {
   password: string;
   color: string;
   icon: string;
+  profession: string;
+  professionLabel: string;
 }
 
 const profiles: ProfileOption[] = [
@@ -22,7 +24,9 @@ const profiles: ProfileOption[] = [
     email: 'gui@organizai.local',
     password: 'OrganizAI2026!',
     color: '#10b981',
-    icon: '👨'
+    icon: '👨',
+    profession: 'motorista',
+    professionLabel: 'Motorista de Aplicativo'
   },
   {
     id: 'jen',
@@ -30,7 +34,9 @@ const profiles: ProfileOption[] = [
     email: 'jen@organizai.local',
     password: 'OrganizAI2026!',
     color: '#8b5cf6',
-    icon: '👩'
+    icon: '👩',
+    profession: 'vendedor',
+    professionLabel: 'Vendedora de Salgados'
   }
 ];
 
@@ -224,9 +230,10 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onAuthSuccess 
                 </div>
                 <div style={{
                   fontSize: '0.8rem',
-                  color: 'var(--text-secondary)'
+                  color: profile.color,
+                  fontWeight: 500
                 }}>
-                  Toque para acessar
+                  {profile.professionLabel}
                 </div>
               </div>
 
