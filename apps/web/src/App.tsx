@@ -435,7 +435,7 @@ function App() {
 
       {/* Main scrollable content */}
       <main className="ios-content">
-        <div className="ios-content-inner stagger">
+        <div key={view} className="ios-content-inner stagger ios-view-transition">
           {renderView()}
         </div>
       </main>

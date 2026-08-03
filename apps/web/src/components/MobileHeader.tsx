@@ -19,7 +19,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
       <div className="ios-header-content">
         <div className="ios-header-row">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 className="ios-header-large-title">{title}</h1>
+            <h1 key={title} className="ios-header-large-title ios-title-anim">{title}</h1>
             {subtitle && <p className="ios-header-subtitle">{subtitle}</p>}
           </div>
           <div className="ios-header-actions">

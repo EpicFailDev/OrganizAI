@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Replica InteractiveMenu</title>
+<style>
+:root {
+  --bg-app: #000000;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(235, 235, 245, 0.6);
+  --component-active-color-default: #0a84ff;
+  --font-body: system-ui, sans-serif;
+  --safe-bottom: 0px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body { background: var(--bg-app); color: #fff; font-family: var(--font-body); }
+.ios-tab-bar {
+  position: fixed;
+  bottom: calc(10px + var(--safe-bottom));
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+/* ===== EXACT disk CSS (no pointer-events fix) ===== */
+.menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(22, 22, 26, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  margin: 0 auto;
+  position: relative;
+  z-index: 100;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 0.9rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, rgba(235, 235, 245, 0.6));
+  cursor: pointer;
+  position: relative;
+  font-family: var(--font-body, inherit);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.35s ease,
+              box-shadow 0.35s ease,
+              transform 0.2s ease;
+  user-select: none;
+}
+.menu__item:hover:not(.active) {
+  color: var(--text-primary, #ffffff);
+  background-color: rgba(255, 255, 255, 0.07);
+}
+.menu__item:active { transform: scale(0.95); }
+.menu__item.active {
+  background-color: var(--component-active-color, var(--component-active-color-default, #0a84ff));
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3), 0 0 20px rgba(10, 132, 255, 0.35);
+}
+.menu__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.menu__icon .icon { width: 20px; height: 20px; stroke-width: 2.1px; }
+.menu__item.active .menu__icon { transform: scale(1.1); }
+.menu__text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  max-width: 0;
+  margin-left: 0;
+  transform: translateX(-6px);
+  transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+.menu__text.active,
+.menu__item.active .menu__text {
+  max-width: var(--lineWidth, 160px);
+  opacity: 1;
+  margin-left: 0.55rem;
+  transform: translateX(0);
+}
+.menu__item.active[style*="--lineWidth: 0px"] .menu__text,
+.menu__item.active[style*="--lineWidth:0px"] .menu__text {
+  max-width: 160px !important;
+}
+</style>
+</head>
+<body>
+  <nav class="ios-tab-bar" id="bar">
+    <nav class="menu" style="--component-active-color: #0a84ff;" role="navigation" id="menu"></nav>
+  </nav>
+<script>
+const items = [
+  { id: 'dashboard', label: 'Início' },
+  { id: 'transactions-uber99', label: 'Uber/99' },
+  { id: 'relatorios', label: 'Relatórios' },
+  { id: 'metas', label: 'Metas' },
+  { id: 'family', label: 'Perfil' },
+];
+const paths = {
+  'Início': '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  'Uber/99': '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',
+  'Relatórios': '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+  'Metas': '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  'Perfil': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+};
+const menu = document.getElementById('menu');
+let activeIndex = 0;
+let itemRefs = [];
+let textRefs = [];
+const svg = (p) => `<svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+function render() {
+  menu.innerHTML = items.map((it, i) => `
+    <button class="menu__item ${i === activeIndex ? 'active' : ''}" data-i="${i}" style="${i === activeIndex ? '' : ''}">
+      <div class="menu__icon">${svg(paths[it.label])}</div>
+      <strong class="menu__text ${i === activeIndex ? 'active' : ''}">${it.label}</strong>
+    </button>`).join('');
+  itemRefs = [...menu.querySelectorAll('.menu__item')];
+  textRefs = itemRefs.map(b => b.querySelector('.menu__text'));
+  measure();
+}
+function measure() {
+  const item = itemRefs[activeIndex];
+  const txt = textRefs[activeIndex];
+  if (item && txt) {
+    const w = txt.scrollWidth || txt.offsetWidth || 60;
+    item.style.setProperty('--lineWidth', `${w}px`);
+    window.__m = { scrollWidth: txt.scrollWidth, offsetWidth: txt.offsetWidth, used: w, opacity: getComputedStyle(txt).opacity, maxW: getComputedStyle(txt).maxWidth, rectW: Math.round(txt.getBoundingClientRect().width) };
+  }
+}
+menu.addEventListener('click', (e) => {
+  const btn = e.target.closest('.menu__item');
+  if (!btn) return;
+  activeIndex = Number(btn.dataset.i);
+  render();
+});
+render();
+requestAnimationFrame(() => requestAnimationFrame(measure));
+</script>
+</body>
+</html>

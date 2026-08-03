@@ -66,7 +66,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
 
   return (
     <>
-      <nav className="ios-tab-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <nav className="ios-tab-bar">
         <InteractiveMenu
           items={tabs}
           activeId={activeId}
