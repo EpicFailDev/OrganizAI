@@ -68,7 +68,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --tab-bar-height: 83px;
+  --tab-bar-height: 94px;
 }
 
 /* Reset */
@@ -208,24 +208,34 @@ body {
 /* ===== iOS BOTTOM TAB BAR ===== */
 .ios-tab-bar {
   position: fixed;
-  bottom: 0;
+  bottom: calc(10px + var(--safe-bottom));
   left: 0;
   right: 0;
   z-index: 200;
-  background: var(--bg-tab-bar);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-top: 0.5px solid var(--separator);
-  padding-bottom: var(--safe-bottom);
-  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
 }
 
 .ios-tab-bar-inner {
   display: flex;
   align-items: flex-start;
   justify-content: space-around;
-  height: 50px;
-  padding: 0 0.25rem;
+  width: 100%;
+  max-width: 460px;
+  height: 62px;
+  padding: 0 6px;
+  border-radius: 26px;
+  background: var(--bg-tab-bar);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 0.5px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 10px 32px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  pointer-events: auto;
 }
 
 .ios-tab {
@@ -233,20 +243,21 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   flex: 1;
   height: 100%;
   border: none;
   background: none;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 5px 0;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s ease;
+  transition: transform 0.18s ease;
   position: relative;
+  border-radius: 20px;
 }
 
 .ios-tab:active {
-  transform: scale(0.85);
+  transform: scale(0.88);
 }
 
 .ios-tab-icon {
@@ -254,27 +265,38 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 42px;
+  height: 30px;
+  border-radius: 15px;
+  transition: background var(--transition-fast);
 }
 
 .ios-tab-icon svg {
   transition: all var(--transition-fast);
 }
 
+.ios-tab.active .ios-tab-icon {
+  background: var(--color-primary-glow);
+}
+
+.ios-tab.active .ios-tab-icon svg {
+  filter: drop-shadow(0 2px 6px rgba(48, 209, 88, 0.45));
+}
+
 .ios-tab-label {
   font-family: var(--font-body);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 500;
   letter-spacing: 0.01em;
   transition: color var(--transition-fast);
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
   line-height: 1;
+  white-space: nowrap;
 }
 
 .ios-tab.active .ios-tab-label {
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .ios-tab.active .ios-tab-icon svg {
@@ -282,7 +304,7 @@ body {
 }
 
 .ios-tab:not(.active) .ios-tab-icon svg {
-  stroke: var(--text-tertiary);
+  stroke: var(--text-secondary);
 }
 
 /* Center FAB button in tab bar */
@@ -290,22 +312,48 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: linear-gradient(145deg, #3ce265 0%, #1faf50 100%);
   color: #000;
   border: none;
   cursor: pointer;
-  margin-top: -16px;
-  box-shadow: 0 4px 16px rgba(48, 209, 88, 0.35);
-  transition: all var(--transition-fast);
+  margin-top: -26px;
   flex-shrink: 0;
+  position: relative;
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.9),
+    0 6px 20px rgba(48, 209, 88, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow var(--transition-fast);
+}
+
+.ios-tab-fab::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(48, 209, 88, 0.35);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all var(--transition-normal);
+}
+
+.ios-tab-fab:hover::after {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .ios-tab-fab:active {
-  transform: scale(0.88);
-  box-shadow: 0 2px 8px rgba(48, 209, 88, 0.25);
+  transform: scale(0.88) rotate(90deg);
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.9),
+    0 3px 10px rgba(48, 209, 88, 0.35);
+}
+
+.ios-tab-fab svg {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ===== iOS CARDS ===== */

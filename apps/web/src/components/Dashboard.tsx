@@ -48,44 +48,54 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const name = profileName || 'Usuário';
 
+  const currentMonthTransactions = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    return transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+  }, [transactions]);
+
   const stats = useMemo(() => {
     let income = 0;
     let expense = 0;
-    transactions.forEach(t => {
+    currentMonthTransactions.forEach(t => {
       const amount = Number(t.amount);
       if (t.type === 'income') income += amount;
       else expense += amount;
     });
     return { income, expense, balance: income - expense };
-  }, [transactions]);
+  }, [currentMonthTransactions]);
 
   const cashFlowData = useMemo(() => {
     const data = [
-      { name: 'Sem 1', Entradas: 0, Saídas: 0 },
-      { name: 'Sem 2', Entradas: 0, Saídas: 0 },
-      { name: 'Sem 3', Entradas: 0, Saídas: 0 },
-      { name: 'Sem 4', Entradas: 0, Saídas: 0 },
+      { name: 'Sem 1', Receita: 0, Despesa: 0 },
+      { name: 'Sem 2', Receita: 0, Despesa: 0 },
+      { name: 'Sem 3', Receita: 0, Despesa: 0 },
+      { name: 'Sem 4', Receita: 0, Despesa: 0 },
     ];
-    transactions.forEach(t => {
+    currentMonthTransactions.forEach(t => {
       const amt = Number(t.amount);
       const day = new Date(t.date).getDate();
       let index = 3;
       if (day <= 7) index = 0;
       else if (day <= 14) index = 1;
       else if (day <= 21) index = 2;
-      if (t.type === 'income') data[index].Entradas += amt;
-      else data[index].Saídas += amt;
+      if (t.type === 'income') data[index].Receita += amt;
+      else data[index].Despesa += amt;
     });
     return data.map(d => ({
       ...d,
-      Entradas: Math.round(d.Entradas),
-      Saídas: Math.round(d.Saídas),
+      Receita: Math.round(d.Receita),
+      Despesa: Math.round(d.Despesa),
     }));
-  }, [transactions]);
+  }, [currentMonthTransactions]);
 
   const donutChartData = useMemo(() => {
     const expenseMap: Record<string, { name: string; value: number; color: string }> = {};
-    transactions.forEach(t => {
+    currentMonthTransactions.forEach(t => {
       if (t.type === 'expense') {
         const cat = t.categories?.name || 'Outros';
         const color = t.categories?.color || '#6b7280';
@@ -105,7 +115,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       ];
     }
     return data.slice(0, 5);
-  }, [transactions]);
+  }, [currentMonthTransactions]);
 
   const totalExpenseSum = useMemo(() => 
     donutChartData.reduce((sum, item) => sum + item.value, 0),
@@ -113,7 +123,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   );
 
   const recentList = useMemo(() => {
-    const list = [...transactions]
+    const list = [...currentMonthTransactions]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
     if (list.length === 0) {
@@ -131,7 +141,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       amount: Number(t.amount),
       color: t.categories?.color || '#8e8e93',
     }));
-  }, [transactions]);
+  }, [currentMonthTransactions]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -167,7 +177,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="ios-kpi-grid">
         <div className="ios-kpi-card" onClick={() => onNavigate?.('entradas')} style={{ cursor: 'pointer' }}>
           <div className="ios-kpi-header">
-            <span className="ios-kpi-label">Entradas</span>
+            <span className="ios-kpi-label">Receita Mensal</span>
             <ArrowUpRight size={14} color="#30d158" />
           </div>
           <div className="ios-kpi-value" style={{ color: '#30d158', fontSize: '1.25rem' }}>
@@ -180,7 +190,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="ios-kpi-card" onClick={() => onNavigate?.('saidas')} style={{ cursor: 'pointer' }}>
           <div className="ios-kpi-header">
-            <span className="ios-kpi-label">Saídas</span>
+            <span className="ios-kpi-label">Despesa Mensal</span>
             <ArrowDownRight size={14} color="#ff453a" />
           </div>
           <div className="ios-kpi-value" style={{ color: '#ff453a', fontSize: '1.25rem' }}>
@@ -205,11 +215,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div style={{ display: 'flex', gap: '1rem', padding: '0 0.75rem 0.5rem', fontSize: '0.7rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <span style={{ width: 8, height: 2, background: '#30d158', borderRadius: 2 }} />
-              Entradas
+              Receita Mensal
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
               <span style={{ width: 8, height: 2, background: '#ff453a', borderRadius: 2 }} />
-              Saídas
+              Despesa Mensal
             </div>
           </div>
           <div style={{ width: '100%', height: 180 }}>
@@ -239,8 +249,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   }}
                   itemStyle={{ color: '#fff' }}
                 />
-                <Area type="monotone" dataKey="Entradas" stroke="#30d158" strokeWidth={2} fillOpacity={1} fill="url(#gIncome)" />
-                <Area type="monotone" dataKey="Saídas" stroke="#ff453a" strokeWidth={2} fillOpacity={1} fill="url(#gExpense)" />
+                <Area type="monotone" dataKey="Receita" stroke="#30d158" strokeWidth={2} fillOpacity={1} fill="url(#gIncome)" />
+                <Area type="monotone" dataKey="Despesa" stroke="#ff453a" strokeWidth={2} fillOpacity={1} fill="url(#gExpense)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

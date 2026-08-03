@@ -88,6 +88,7 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
+    setView('dashboard');
     supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
       setAuthChecked(true);

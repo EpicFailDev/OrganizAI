@@ -16,10 +16,9 @@ Como o Supabase possui um plano gratuito generoso, usaremos a nuvem deles em vez
 
 ### Configurar Armazenamento de Comprovantes (Storage)
 
-> ⚠️ **SEGURANÇA:** os comprovantes são documentos financeiros. O bucket **deve permanecer PRIVADO**.
-> **Antes** de executar este passo, garanta que o frontend web usa **URLs assinadas (signed URLs)**
-> para exibir os comprovantes — se ele ainda monta as imagens por URL pública, **não** torne o bucket
-> privado antes de migrar o frontend, senão as imagens quebram. O app mobile já usa URLs assinadas.
+> **Antes** de executar este passo, garanta que a aplicação web/PWA usa **URLs assinadas (signed URLs)**
+> para exibir os comprovantes — se ela ainda monta as imagens por URL pública, **não** torne o bucket
+> privado antes de migrar o frontend, senão as imagens quebram.
 
 1. No painel do Supabase, acesse **Storage**.
 2. Clique em **New Bucket** e nomeie como `attachments`.
