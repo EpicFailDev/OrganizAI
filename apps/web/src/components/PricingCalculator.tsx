@@ -320,6 +320,10 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
     updateItem(itemId, 'ingredient_name', base.name);
     updateItem(itemId, 'package_cost', base.package_cost);
     updateItem(itemId, 'package_grams', base.package_grams);
+    if (blurTimerRef.current) {
+      window.clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = null;
+    }
     setSuggestForId(null);
   }, [updateItem]);
 
@@ -577,6 +581,11 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
                     setSuggestForId(item.id);
                   }}
                   onFocus={(e) => {
+                    // Cancela um fechamento pendente do blur anterior (troca de linha)
+                    if (blurTimerRef.current) {
+                      window.clearTimeout(blurTimerRef.current);
+                      blurTimerRef.current = null;
+                    }
                     const rect = e.currentTarget.getBoundingClientRect();
                     setSuggestRect({ top: rect.bottom + 4, left: rect.left, width: rect.width });
                     setSuggestForId(item.id);
