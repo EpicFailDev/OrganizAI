@@ -54,6 +54,7 @@ interface VendasProps {
   familyId: string;
   userId: string;
   transactions: Transaction[];
+  profileName?: string;
 }
 
 type TabType = 'calculator' | 'products' | 'sales' | 'reports';
@@ -64,7 +65,8 @@ const formatCurrency = (value: number) =>
 export const Vendas: React.FC<VendasProps> = ({
   familyId,
   userId,
-  transactions: _transactions
+  transactions: _transactions,
+  profileName
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('calculator');
   const [products, setProducts] = useState<Product[]>([]);
@@ -173,17 +175,23 @@ export const Vendas: React.FC<VendasProps> = ({
   const kpis = useMemo(() => {
     let totalSales = 0;
     let totalCosts = 0;
+    let totalUnits = 0;
 
     sales.forEach(s => {
       totalSales += Number(s.total_price);
       totalCosts += Number(s.cost_price || 0);
+      totalUnits += Number(s.quantity || 0);
     });
+
+    const profit = totalSales - totalCosts;
+    const margin = totalSales > 0 ? (profit / totalSales) * 100 : 0;
 
     return {
       totalSales,
       totalCosts,
-      profit: totalSales - totalCosts,
-      salesCount: sales.length
+      profit,
+      margin,
+      totalUnits
     };
   }, [sales]);
 
@@ -249,13 +257,13 @@ export const Vendas: React.FC<VendasProps> = ({
               color: '#fff', 
               letterSpacing: '-0.02em' 
             }}>
-              Vendas
+              {profileName ? `Olá, ${profileName.split(' ')[0]}!` : 'Vendas'}
             </h1>
             <p style={{ 
               color: 'var(--text-secondary)', 
               fontSize: '0.82rem' 
             }}>
-              Calculadora de precificação e controle de vendas
+              Sua calculadora de gastos, vendas e lucro dos salgados
             </p>
           </div>
         </div>
@@ -268,10 +276,11 @@ export const Vendas: React.FC<VendasProps> = ({
         gap: '1rem'
       }}>
         {[
+          { label: 'Unidades Vendidas', value: `${kpis.totalUnits}`, icon: <ShoppingCart size={16} />, color: '#ff9800' },
           { label: 'Total Vendas', value: formatCurrency(kpis.totalSales), icon: <DollarSign size={16} />, color: '#4caf50' },
           { label: 'Custos', value: formatCurrency(kpis.totalCosts), icon: <TrendingDown size={16} />, color: '#f44336' },
           { label: 'Lucro', value: formatCurrency(kpis.profit), icon: <TrendingUp size={16} />, color: kpis.profit >= 0 ? '#4caf50' : '#f44336' },
-          { label: 'Nº Vendas', value: kpis.salesCount.toString(), icon: <ShoppingCart size={16} />, color: '#2196f3' },
+          { label: 'Margem', value: `${kpis.margin.toFixed(1)}%`, icon: <BarChart3 size={16} />, color: '#2196f3' },
         ].map((kpi, i) => (
           <div key={i} style={{
             background: 'var(--bg-card)',

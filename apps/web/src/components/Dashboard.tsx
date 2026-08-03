@@ -223,7 +223,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* KPI Grid */}
       <div className="ios-kpi-grid">
-        <div className="ios-kpi-card" onClick={() => onNavigate?.(profession === 'motorista' ? 'transactions-uber99' : profession === 'vendedor' ? 'transactions-salgados' : 'entradas')} style={{ cursor: 'pointer' }}>
+        <div className="ios-kpi-card" onClick={() => onNavigate?.(profession === 'motorista' ? 'transactions-uber99' : profession === 'vendedor' ? 'vendas' : 'entradas')} style={{ cursor: 'pointer' }}>
           <div className="ios-kpi-header">
             <span className="ios-kpi-label">{profession === 'motorista' ? 'Ganhos do Mês' : profession === 'vendedor' ? 'Vendas do Mês' : 'Receita Mensal'}</span>
             <ArrowUpRight size={14} color="#30d158" />

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { formatCurrency } from '../utils';
 import {
   BarChart3, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   Calendar, Download, PieChart as PieIcon,
@@ -8,6 +9,15 @@ import {
   PieChart as RechartsPieChart, Pie, Cell,
   AreaChart, Area,
 } from 'recharts';
+
+// Parse 'YYYY-MM-DD' como data LOCAL (new Date(str) é UTC e desloca o dia no BR)
+const parseLocalDate = (value: string) => {
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(s);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+};
 
 interface Category {
   id: string;
@@ -39,7 +49,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
   const now = new Date();
   const filteredTx = useMemo(() => {
     return transactions.filter((t) => {
-      const d = new Date(t.date);
+      const d = parseLocalDate(t.date);
       if (period === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       if (period === 'quarter') {
         const q = Math.floor(now.getMonth() / 3);
@@ -71,7 +81,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
       });
     }
     transactions.forEach((t) => {
-      const d = new Date(t.date);
+      const d = parseLocalDate(t.date);
       const diff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
       if (diff < 0 || diff > 11) return;
       const idx = 11 - diff;
@@ -122,19 +132,28 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
   const dailySums = useMemo(() => {
     const map: Record<string, number> = {};
     filteredTx.forEach((t) => {
-      const key = t.date;
+      const key = String(t.date).slice(0, 10);
       const amt = Number(t.amount);
       map[key] = (map[key] || 0) + (t.type === 'income' ? amt : -amt);
     });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [filteredTx]);
 
+  // Melhor = maior saldo positivo; Pior = menor saldo negativo.
+  // Só faz sentido mostrar os dois quando são dias diferentes.
+  const bestDay = dailySums.length > 0 && dailySums[0][1] > 0 ? dailySums[0] : null;
+  const worstCandidate = dailySums.length > 0 ? dailySums[dailySums.length - 1] : null;
+  const worstDay =
+    worstCandidate && worstCandidate[1] < 0 && worstCandidate[0] !== bestDay?.[0]
+      ? worstCandidate
+      : null;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '2.1rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em' }}>
+          <h1 style={{ fontSize: '2.1rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
             Relatórios
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
@@ -187,14 +206,14 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
         border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)',
         padding: '1.5rem', boxShadow: 'var(--shadow-md)',
       }}>
-        <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '1rem' }}>
+        <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
           Evolução Mensal
         </h3>
         <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.75rem', fontSize: '0.72rem' }}>
           {[
             { label: 'Entradas', color: '#10b981' },
             { label: 'Saídas', color: '#ef4444' },
-            { label: 'Saldo', color: '#fff' },
+            { label: 'Saldo', color: 'var(--text-primary)' },
           ].map((l) => (
             <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)' }}>
               <span style={{ width: '16px', height: '2px', backgroundColor: l.color, borderRadius: '2px' }} />
@@ -220,13 +239,13 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
               <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
               <Tooltip
                 formatter={(value) => [fmt(Number(value)), '']}
-                contentStyle={{ backgroundColor: '#0c101b', borderColor: 'rgba(255,255,255,0.08)', borderRadius: 'var(--radius-md)', color: '#fff' }}
-                itemStyle={{ color: '#fff' }}
+                contentStyle={{ backgroundColor: 'var(--bg-card-solid)', borderColor: 'var(--border-color)', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-primary)' }}
                 labelStyle={{ color: 'var(--text-secondary)', fontWeight: 600 }}
               />
               <Area type="monotone" dataKey="Entradas" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#relGradIncome)" />
               <Area type="monotone" dataKey="Saídas" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#relGradExpense)" />
-              <Area type="monotone" dataKey="Saldo" stroke="#ffffff" strokeWidth={2} fillOpacity={0} />
+              <Area type="monotone" dataKey="Saldo" stroke="var(--text-primary)" strokeWidth={2} fillOpacity={0} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -240,7 +259,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
           border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)',
           padding: '1.5rem', boxShadow: 'var(--shadow-md)',
         }}>
-          <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '1rem' }}>
+          <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
             Despesas por Categoria
           </h3>
           {categoryBreakdown.length === 0 ? (
@@ -253,7 +272,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: c.color, flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{c.name}</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>{fmt(c.value)}</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(c.value)}</span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', minWidth: '32px', textAlign: 'right' }}>{pct}%</span>
                   </div>
                 );
@@ -268,7 +287,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
           border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)',
           padding: '1.5rem', boxShadow: 'var(--shadow-md)',
         }}>
-          <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '1rem' }}>
+          <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
             Receitas por Categoria
           </h3>
           {incomeBreakdown.length === 0 ? (
@@ -281,7 +300,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: c.color, flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{c.name}</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>{fmt(c.value)}</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(c.value)}</span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', minWidth: '32px', textAlign: 'right' }}>{pct}%</span>
                   </div>
                 );
@@ -292,8 +311,9 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
       </div>
 
       {/* Best/Worst Days */}
-      {dailySums.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+      {(bestDay || worstDay) && (
+        <div style={{ display: 'grid', gridTemplateColumns: bestDay && worstDay ? '1fr 1fr' : '1fr', gap: '1.25rem' }}>
+          {bestDay && (
           <div style={{
             background: 'var(--bg-card)', backdropFilter: 'blur(16px)',
             border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)',
@@ -301,15 +321,17 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <TrendingUp size={16} color="var(--color-income)" />
-              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '0.92rem', fontWeight: 700, color: '#fff' }}>Melhor Dia</h3>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>Melhor Dia</h3>
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {new Date(dailySums[0][0]).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
+              {parseLocalDate(bestDay[0]).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
             </div>
             <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-income)' }}>
-              {fmt(dailySums[0][1])}
+              {fmt(bestDay[1])}
             </div>
           </div>
+          )}
+          {worstDay && (
           <div style={{
             background: 'var(--bg-card)', backdropFilter: 'blur(16px)',
             border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)',
@@ -317,15 +339,16 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <TrendingDown size={16} color="var(--color-expense)" />
-              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '0.92rem', fontWeight: 700, color: '#fff' }}>Pior Dia</h3>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>Pior Dia</h3>
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {new Date(dailySums[dailySums.length - 1][0]).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
+              {parseLocalDate(worstDay[0]).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
             </div>
             <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-expense)' }}>
-              {fmt(dailySums[dailySums.length - 1][1])}
+              {fmt(worstDay[1])}
             </div>
           </div>
+          )}
         </div>
       )}
     </div>

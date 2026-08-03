@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { X, Edit3, Trash2, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../utils';
@@ -76,6 +76,17 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Dispara a classe .open num frame APÓS o mount, para a transição de subida
+  // do sheet pegar (senão o conteúdo fica em translateY(100%) e nunca aparece).
+  const rafRef = useRef<number | null>(null);
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(() => setMounted(true));
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   const [date, setDate] = useState(transaction.date);
   const [time, setTime] = useState(transaction.time || '');
@@ -177,7 +188,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   );
 
   return (
-    <div className="ios-sheet-overlay open" onClick={onClose}>
+    <div className={`ios-sheet-overlay ${mounted ? 'open' : ''}`} onClick={onClose}>
       <div
         className="ios-sheet"
         onClick={(e) => e.stopPropagation()}

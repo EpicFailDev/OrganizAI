@@ -7,8 +7,7 @@ import {
   Store,
   Home,
   PieChart,
-  Users,
-  Calculator
+  Users
 } from 'lucide-react';
 import { InteractiveMenu, type InteractiveMenuItem } from './InteractiveMenu';
 
@@ -34,8 +33,9 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
     if (profession === 'motorista') {
       professionTabs.push({ id: 'transactions-uber99', label: 'Uber/99', icon: Car });
     } else if (profession === 'vendedor') {
-      professionTabs.push({ id: 'transactions-salgados', label: 'Salgados', icon: Store });
-      professionTabs.push({ id: 'vendas', label: 'Precificar', icon: Calculator });
+      // Para a vendedora, a aba profissional é "Vendas": abre a tela diferenciada
+      // com a calculadora de gastos (estilo planilha), unidades vendidas e lucro.
+      professionTabs.push({ id: 'vendas', label: 'Vendas', icon: Store });
     } else {
       professionTabs.push({ id: 'transactions', label: 'Extrato', icon: Receipt });
     }
@@ -55,7 +55,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
     if (currentView === 'dashboard') return 'dashboard';
     if (currentView === 'transactions' || currentView.startsWith('transactions-')) {
       if (profession === 'motorista') return 'transactions-uber99';
-      if (profession === 'vendedor') return 'transactions-salgados';
+      if (profession === 'vendedor') return 'vendas'; // lista de Salgados pertence à aba Vendas
       return 'transactions';
     }
     if (currentView === 'vendas') return 'vendas';

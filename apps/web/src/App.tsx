@@ -75,6 +75,7 @@ const VIEW_ORDER: Record<string, number> = {
   transactions: 1,
   'transactions-entradas': 1.5,
   'transactions-saidas': 1.5,
+  vendas: 1,
   relatorios: 2,
   metas: 3,
   family: 4,
@@ -391,6 +392,7 @@ function App() {
             familyId={familyId || ''}
             userId={session.user.id}
             transactions={transactions}
+            profileName={profile?.display_name}
           />
         )}
         {v.startsWith('transactions') && v !== 'transactions-uber99' && (
