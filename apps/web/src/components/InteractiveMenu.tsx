@@ -49,7 +49,10 @@ const InteractiveMenu: React.FC<InteractiveMenuProps> = ({
   const activeIndex = useMemo(() => {
     if (activeId !== undefined) {
       const idx = finalItems.findIndex(
-        (item) => item.id === activeId || item.label.toLowerCase() === activeId.toLowerCase()
+        (item) => 
+          (item.id && item.id === activeId) ||
+          item.label.toLowerCase() === activeId.toLowerCase() ||
+          (activeId.startsWith('transactions') && item.id?.startsWith('transactions'))
       );
       if (idx !== -1) return idx;
     }
@@ -71,15 +74,24 @@ const InteractiveMenu: React.FC<InteractiveMenuProps> = ({
       const activeTextElement = textRefs.current[activeIndex];
 
       if (activeItemElement && activeTextElement) {
-        const textWidth = activeTextElement.offsetWidth;
+        // Use scrollWidth to measure full intrinsic text width even if overflow/max-width is 0
+        const textWidth = activeTextElement.scrollWidth || activeTextElement.offsetWidth || 60;
         activeItemElement.style.setProperty('--lineWidth', `${textWidth}px`);
       }
     };
 
     setLineWidth();
 
+    let timer: number;
+    const raf = requestAnimationFrame(() => {
+      setLineWidth();
+      timer = window.setTimeout(setLineWidth, 50);
+    });
+
     window.addEventListener('resize', setLineWidth);
     return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
       window.removeEventListener('resize', setLineWidth);
     };
   }, [activeIndex, finalItems]);
@@ -113,11 +125,14 @@ const InteractiveMenu: React.FC<InteractiveMenuProps> = ({
           <button
             key={item.id || item.label}
             className={`menu__item ${isActive ? 'active' : ''}`}
-            onClick={() => handleItemClick(index)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleItemClick(index);
+            }}
             ref={(el) => {
               itemRefs.current[index] = el;
             }}
-            style={{ '--lineWidth': '0px' } as React.CSSProperties}
           >
             <div className="menu__icon">
               <IconComponent className="icon" />
