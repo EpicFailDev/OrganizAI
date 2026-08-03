@@ -15,7 +15,7 @@ const queryCache = new Map<string, { data: any; ts: number }>();
 
 export async function cachedQuery<T>(
   key: string,
-  fetcher: () => Promise<{ data: T | null; error: any }>,
+  fetcher: () => PromiseLike<{ data: T | null; error: any }>,
   ttl = 15000,
 ): Promise<{ data: T | null; error: any }> {
   const cached = queryCache.get(key);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { X, Edit3, Trash2, Save, Loader2, Calendar, DollarSign, Tag, Clock, User, FileText, Image as ImageIcon, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../utils';
+import { useSignedAttachmentUrl } from '../lib/storage';
 
 interface Transaction {
   id: string;
@@ -84,6 +85,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const [subcategoryId, setSubcategoryId] = useState(transaction.subcategory_id || '');
   const [amount, setAmount] = useState(transaction.amount.toString().replace('.', ','));
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+
+  // Bucket privado: URL assinada resolvida sob demanda (src/lib/storage.ts)
+  const attachmentUrl = useSignedAttachmentUrl(transaction.attachment_url);
 
   const filteredCategories = useMemo(() => {
     return categories.filter(c => c.type === type);
@@ -232,14 +236,14 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             {/* Type toggle */}
             <div style={{ display: 'flex', gap: '0.6rem', backgroundColor: 'rgba(255,255,255,0.02)', padding: '0.3rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
               <button type="button" onClick={() => setType('expense')} style={{
-                flex: 1, padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: 'none',
+                flex: 1, padding: '0.55rem', borderRadius: 'var(--radius-sm)',
                 backgroundColor: type === 'expense' ? 'var(--color-expense-bg)' : 'transparent',
                 color: type === 'expense' ? 'var(--color-expense)' : 'var(--text-secondary)',
                 fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem',
                 border: '1px solid', borderColor: type === 'expense' ? 'rgba(244,63,94,0.2)' : 'transparent'
               }}>Despesa</button>
               <button type="button" onClick={() => setType('income')} style={{
-                flex: 1, padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: 'none',
+                flex: 1, padding: '0.55rem', borderRadius: 'var(--radius-sm)',
                 backgroundColor: type === 'income' ? 'var(--color-income-bg)' : 'transparent',
                 color: type === 'income' ? 'var(--color-income)' : 'var(--text-secondary)',
                 fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem',
@@ -366,9 +370,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                 <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                   Comprovante
                 </h4>
-                <img src={transaction.attachment_url} alt="Comprovante"
-                  style={{ width: '100%', maxHeight: '200px', borderRadius: 'var(--radius-sm)', objectFit: 'contain', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', cursor: 'pointer' }}
-                  onClick={() => window.open(transaction.attachment_url, '_blank')} />
+                {attachmentUrl ? (
+                  <img src={attachmentUrl} alt="Comprovante"
+                    style={{ width: '100%', maxHeight: '200px', borderRadius: 'var(--radius-sm)', objectFit: 'contain', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+                    onClick={() => window.open(attachmentUrl, '_blank')} />
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Carregando comprovante...</p>
+                )}
               </div>
             )}
 

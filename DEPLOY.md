@@ -15,25 +15,52 @@ Como o Supabase possui um plano gratuito generoso, usaremos a nuvem deles em vez
 5. Clique em **Run** para criar todas as tabelas, triggers e RLS.
 
 ### Configurar Armazenamento de Comprovantes (Storage)
-Para fazer o upload dos recibos pelo celular ou web:
+
+> ⚠️ **SEGURANÇA:** os comprovantes são documentos financeiros. O bucket **deve permanecer PRIVADO**.
+> **Antes** de executar este passo, garanta que o frontend web usa **URLs assinadas (signed URLs)**
+> para exibir os comprovantes — se ele ainda monta as imagens por URL pública, **não** torne o bucket
+> privado antes de migrar o frontend, senão as imagens quebram. O app mobile já usa URLs assinadas.
+
 1. No painel do Supabase, acesse **Storage**.
 2. Clique em **New Bucket** e nomeie como `attachments`.
-3. Marque a opção **Public** (permite visualizar os recibos diretamente via URL pública).
-4. No menu lateral de **Storage**, vá em **Policies** para criar políticas de acesso. Execute o seguinte comando SQL no editor SQL para automatizar as permissões:
+3. **NÃO marque a opção Public** — o bucket deve permanecer **privado**.
+4. As políticas de acesso ao bucket **já estão incluídas** na migração
+   `supabase/migrations/20260721000000_add_invite_code_and_rpcs.sql` (execute as migrações na ordem).
+   **Não crie políticas abertas.** Se precisar recriar manualmente, use o SQL abaixo — restrito aos
+   membros da família (o caminho do arquivo é `receipts/<family_id>/<arquivo>`):
 
 ```sql
--- Políticas para o bucket 'attachments'
-create policy "Membros podem inserir comprovantes"
-  on storage.objects for insert to authenticated
-  with check (bucket_id = 'attachments');
+drop policy if exists "Family members can view attachments" on storage.objects;
+drop policy if exists "Family members can upload attachments" on storage.objects;
+drop policy if exists "Family members can update attachments" on storage.objects;
+drop policy if exists "Family members can delete attachments" on storage.objects;
 
-create policy "Qualquer pessoa logada pode visualizar comprovantes"
+create policy "Family members can view attachments"
   on storage.objects for select to authenticated
-  using (bucket_id = 'attachments');
+  using (bucket_id = 'attachments'
+    and (storage.foldername(name))[2]::uuid in
+      (select family_id from public.family_members where profile_id = auth.uid()));
 
-create policy "Membros podem deletar comprovantes"
+create policy "Family members can upload attachments"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'attachments'
+    and (storage.foldername(name))[2]::uuid in
+      (select family_id from public.family_members where profile_id = auth.uid()));
+
+create policy "Family members can update attachments"
+  on storage.objects for update to authenticated
+  using (bucket_id = 'attachments'
+    and (storage.foldername(name))[2]::uuid in
+      (select family_id from public.family_members where profile_id = auth.uid()))
+  with check (bucket_id = 'attachments'
+    and (storage.foldername(name))[2]::uuid in
+      (select family_id from public.family_members where profile_id = auth.uid()));
+
+create policy "Family members can delete attachments"
   on storage.objects for delete to authenticated
-  using (bucket_id = 'attachments');
+  using (bucket_id = 'attachments'
+    and (storage.foldername(name))[2]::uuid in
+      (select family_id from public.family_members where profile_id = auth.uid()));
 ```
 
 ---
@@ -59,7 +86,11 @@ Por padrão, a Oracle bloqueia todo tráfego de entrada.
 3. Adicione uma **Ingress Rule** (Regra de Entrada):
    * **Source CIDR**: `0.0.0.0/0`
    * **IP Protocol**: `TCP`
-   * **Destination Port Range**: `80, 443` (para web segura) e `8080` (porta do Docker se quiser testar sem SSL).
+   * **Destination Port Range**: `80, 443` (apenas HTTPS e a porta do certificado).
+
+   > ⚠️ **Não abra a porta `8080`.** O container web escuta apenas em `127.0.0.1` (loopback),
+   > acessível somente pelo Nginx da própria máquina. Abrir `8080` para a internet expõe o serviço
+   > sem HTTPS e sem o firewall do Nginx.
 
 ---
 
@@ -69,18 +100,30 @@ Por padrão, a Oracle bloqueia todo tráfego de entrada.
    ```bash
    ssh -i /caminho/para/sua/chave.key ubuntu@<IP_PUBLICO_DA_ORACLE>
    ```
-2. Atualize o sistema e instale o Docker:
+2. Atualize o sistema e instale o Docker (Engine + Compose v2) a partir do repositório oficial:
    ```bash
    sudo apt update && sudo apt upgrade -y
-   sudo apt install docker.io docker-compose -y
-   sudo systemctl start docker
-   sudo systemctl enable docker
+   sudo apt install -y ca-certificates curl gnupg
+   sudo install -m 0755 -d /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list
+   sudo apt update
+   sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+   sudo systemctl enable --now docker
    ```
 3. Permita rodar o Docker sem `sudo` (opcional):
    ```bash
    sudo usermod -aG docker $USER
    # Desconecte e conecte novamente via SSH para aplicar as permissões
    ```
+
+> 💡 **Recomendado:** o script **`setup-vps.sh`** automatiza este passo (Docker Engine + Compose v2)
+> **e** o hardening completo da VPS em um único comando: firewall **UFW** (SSH, 80, 443), **Fail2ban**,
+> **swap** de 1GB, **atualizações automáticas** de segurança, **`.env` com permissão 600**, proxy reverso
+> Nginx com headers de segurança e **HTTPS** com redirecionamento e HSTS.
+> ```bash
+> sudo ./setup-vps.sh
+> ```
 
 ---
 
@@ -102,9 +145,11 @@ Por padrão, a Oracle bloqueia todo tráfego de entrada.
    ```
 3. Suba o container no servidor:
    ```bash
-   docker-compose up -d --build
+   docker compose up -d --build
    ```
-   Isso compilará a aplicação React e a servirá usando Nginx na porta `8080`. Você já poderá acessar o painel no navegador digitando `http://<IP_PUBLICO_DA_ORACLE>:8080`.
+   Isso compilará a aplicação React e a servirá usando Nginx (container) na porta `8080`, acessível
+   somente via loopback. O acesso público será feito pelo Nginx da VPS + HTTPS (Passo 5), ex.:
+   `https://organizai-familia.duckdns.org`.
 
 ---
 
@@ -127,14 +172,19 @@ Uma forma rápida com Certbot instalado diretamente no Ubuntu:
    ```bash
    sudo nano /etc/nginx/sites-available/organizai
    ```
-   Insira o conteúdo:
+   Insira o conteúdo (com headers de segurança):
    ```nginx
    server {
        listen 80;
        server_name organizai-familia.duckdns.org; # Substitua pelo seu subdomínio
+       server_tokens off;
+
+       add_header X-Content-Type-Options "nosniff" always;
+       add_header X-Frame-Options "SAMEORIGIN" always;
+       add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
        location / {
-           proxy_pass http://localhost:8080;
+           proxy_pass http://127.0.0.1:8080;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

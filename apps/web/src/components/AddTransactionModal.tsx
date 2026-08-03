@@ -127,12 +127,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
         if (uploadError) throw uploadError;
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('attachments')
-          .getPublicUrl(filePath);
-
-        attachmentUrl = publicUrl;
+        // Bucket privado: salvamos o PATH no banco; a URL assinada é
+        // resolvida na renderização (ver src/lib/storage.ts).
+        attachmentUrl = filePath;
         setUploading(false);
       }
 

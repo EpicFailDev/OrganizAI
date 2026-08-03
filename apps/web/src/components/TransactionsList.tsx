@@ -5,9 +5,11 @@ import {
   Image as ImageIcon, 
   Filter,
   X,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { formatCurrency } from '../utils';
+import { getSignedAttachmentUrl } from '../lib/storage';
 import { TransactionDetailModal } from './TransactionDetailModal';
 
 interface Transaction {
@@ -89,8 +91,19 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   });
   
   const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerReceiptItems, setViewerReceiptItems] = useState<{ transaction: Transaction; items: ReceiptItem[] } | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+
+  // Bucket privado: resolve a URL assinada antes de exibir o comprovante
+  const openViewer = async (value?: string) => {
+    if (!value) return;
+    setViewerLoading(true);
+    setViewerImage(null);
+    const url = await getSignedAttachmentUrl(value);
+    setViewerImage(url);
+    setViewerLoading(false);
+  };
 
   useEffect(() => {
     setSearchInput(presetSearch);
@@ -341,7 +354,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                     <td style={{ textAlign: 'center' }}>
                       {t.attachment_url ? (
                         <button
-                          onClick={(e) => { e.stopPropagation(); setViewerImage(t.attachment_url || null); }}
+                          onClick={(e) => { e.stopPropagation(); openViewer(t.attachment_url); }}
                           style={{
                             background: 'none',
                             border: 'none',
@@ -559,7 +572,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
       )}
 
       {/* Image Viewer Lightbox */}
-      {viewerImage && (
+      {(viewerImage || viewerLoading) && (
         <div className="modal-overlay" onClick={() => setViewerImage(null)}>
           <div className="glass-card" style={{
             position: 'relative',
@@ -585,37 +598,45 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
               </button>
             </div>
 
-            <img 
-              src={viewerImage} 
-              alt="Comprovante Financeiro" 
-              style={{
-                width: '100%',
-                maxHeight: '60vh',
-                borderRadius: 'var(--radius-md)',
-                objectFit: 'contain',
-                backgroundColor: 'rgba(0,0,0,0.2)',
-                border: '1px solid var(--border-color)'
-              }} 
-            />
+            {viewerLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '2rem 0', color: 'var(--text-secondary)' }}>
+                <Loader2 size={18} className="spinner" /> Carregando comprovante...
+              </div>
+            ) : viewerImage && (
+              <img 
+                src={viewerImage} 
+                alt="Comprovante Financeiro" 
+                style={{
+                  width: '100%',
+                  maxHeight: '60vh',
+                  borderRadius: 'var(--radius-md)',
+                  objectFit: 'contain',
+                  backgroundColor: 'rgba(0,0,0,0.2)',
+                  border: '1px solid var(--border-color)'
+                }} 
+              />
+            )}
 
-            <div style={{ display: 'flex', gap: '0.5rem', width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-              <a 
-                href={viewerImage} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="btn-primary"
-                style={{ flex: 1, textDecoration: 'none', padding: '0.65rem' }}
-              >
-                <FileText size={16} /> Abrir Link Direto
-              </a>
-              <button 
-                className="btn-secondary" 
-                style={{ flex: 1, padding: '0.65rem' }}
-                onClick={() => setViewerImage(null)}
+            {!viewerLoading && viewerImage && (
+              <div style={{ display: 'flex', gap: '0.5rem', width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                <a 
+                  href={viewerImage} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="btn-primary"
+                  style={{ flex: 1, textDecoration: 'none', padding: '0.65rem' }}
+                >
+                  <FileText size={16} /> Abrir Link Direto
+                </a>
+                <button 
+                  className="btn-secondary" 
+                  style={{ flex: 1, padding: '0.65rem' }}
+                  onClick={() => setViewerImage(null)}
               >
                 Fechar Recibo
               </button>
             </div>
+            )}
           </div>
         </div>
       )}
