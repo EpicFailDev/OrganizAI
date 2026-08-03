@@ -287,10 +287,10 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
 
   // ── Render ─────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="uber99-root" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
       {/* ── Header ─────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="uber99-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{
             width: '48px', height: '48px', borderRadius: 'var(--radius-md)',
@@ -335,7 +335,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
       </div>
 
       {/* ── KPI Cards Row ──────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
+      <div className="uber99-kpi-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem' }}>
         {[
           {
             label: 'Rendimento Líquido', value: fmt(kpis.netIncome),
@@ -363,7 +363,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
             accent: '#f59e0b',
           },
         ].map((kpi, i) => (
-          <div key={i} style={{
+          <div key={i} className="uber99-kpi-card" style={{
             background: 'var(--bg-card)', backdropFilter: 'blur(16px)',
             border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)',
             padding: '1.25rem', boxShadow: 'var(--shadow-sm)',
@@ -385,10 +385,10 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
                 {React.cloneElement(kpi.icon, { color: kpi.accent })}
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+            <div className="uber99-kpi-value" style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
               {kpi.value}
             </div>
-            <div style={{
+            <div className="uber99-kpi-badge" style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
               fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.5rem',
               borderRadius: '50px', alignSelf: 'flex-start', marginTop: 'auto',
@@ -410,7 +410,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
       </div>
 
       {/* ── Middle Row: Evolution + Platform Donut + Quick Perf ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '1.25rem' }}>
+      <div className="uber99-mid-row" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '1.25rem' }}>
 
         {/* Evolution Chart */}
         <div style={{
@@ -448,7 +448,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
               </div>
             ))}
           </div>
-          <div style={{ width: '100%', height: '220px' }}>
+          <div className="uber99-chart" style={{ width: '100%', height: '220px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={evolutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
@@ -613,7 +613,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
       </div>
 
       {/* ── Bottom Row: Cost Breakdown + Weekly Performance ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+      <div className="uber99-bottom-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
 
         {/* Cost Breakdown */}
         <div style={{
@@ -676,7 +676,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
               </span>
             </div>
           </div>
-          <div style={{ width: '100%', height: '220px' }}>
+          <div className="uber99-chart" style={{ width: '100%', height: '220px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
@@ -697,7 +697,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
             </ResponsiveContainer>
           </div>
           {/* Best day / Average */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          <div className="uber99-insight-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
             <div style={{
               background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-sm)', padding: '0.75rem', textAlign: 'center',
@@ -732,7 +732,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
         <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '1.25rem' }}>
           Metas do Mês
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+        <div className="uber99-goals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
           {goals.map((g) => {
             const progress = Math.min(Math.round((g.current / g.meta) * 100), 100);
             const reached = progress >= 100;
@@ -826,14 +826,72 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
 
       {/* ── Responsive Overrides ───────────────────────── */}
       <style>{`
-        @media (max-width: 1200px) {
+        .uber99-root { width: 100%; max-width: 100%; overflow-x: hidden; }
+        .uber99-root * { min-width: 0; }
+
+        /* ── Tablet / laptop pequeno ───────────────────── */
+        @media (max-width: 1280px) {
           .uber99-kpi-row { grid-template-columns: repeat(3, 1fr) !important; }
+          .uber99-mid-row { grid-template-columns: 1fr 1fr !important; }
+          .uber99-mid-row > *:first-child { grid-column: 1 / -1; }
         }
-        @media (max-width: 900px) {
+
+        @media (max-width: 980px) {
           .uber99-kpi-row { grid-template-columns: repeat(2, 1fr) !important; }
+          .uber99-mid-row,
+          .uber99-bottom-row { grid-template-columns: 1fr !important; }
+          .uber99-goals-grid { grid-template-columns: 1fr 1fr !important; gap: 1.25rem !important; }
         }
+
+        /* ── Mobile ────────────────────────────────────── */
         @media (max-width: 640px) {
+          .uber99-root { gap: 1rem !important; }
+
+          /* Header empilhado */
+          .uber99-header { flex-direction: column; align-items: flex-start !important; gap: 0.75rem !important; }
+          .uber99-header h1 { font-size: 1.35rem !important; }
+          .uber99-header p { font-size: 0.75rem !important; }
+          .uber99-header > div:last-child {
+            width: 100%;
+            display: grid !important;
+            grid-template-columns: 1fr auto;
+            gap: 0.5rem !important;
+          }
+          .uber99-header > div:last-child > div { justify-content: center; font-size: 0.72rem !important; padding: 0.5rem 0.6rem !important; }
+
+          /* KPIs: 2 colunas compactas em vez de 5 */
+          .uber99-kpi-row { grid-template-columns: repeat(2, 1fr) !important; gap: 0.65rem !important; }
+          .uber99-kpi-card { padding: 0.85rem !important; min-height: 108px !important; gap: 0.4rem; }
+          .uber99-kpi-card span { font-size: 0.68rem !important; }
+          .uber99-kpi-value { font-size: 1.15rem !important; word-break: break-word; }
+          .uber99-kpi-badge { font-size: 0.6rem !important; padding: 0.15rem 0.4rem !important; }
+          /* último KPI ocupa a linha inteira quando sobra sozinho */
+          .uber99-kpi-row > .uber99-kpi-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+          /* Cards em geral: menos padding */
+          .uber99-mid-row > div,
+          .uber99-bottom-row > div,
+          .uber99-root > div[style*="radius-lg"] { padding: 1rem !important; }
+
+          /* Gráficos mais baixos e sem corte */
+          .uber99-chart { height: 190px !important; }
+
+          /* Metas empilhadas */
+          .uber99-goals-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+
+          /* Cards de insight lado a lado permanecem, só encolhem */
+          .uber99-insight-cards { gap: 0.65rem !important; }
+          .uber99-insight-cards > div { padding: 0.6rem !important; }
+
+          h3 { font-size: 0.92rem !important; }
+        }
+
+        /* ── Telas muito estreitas (<=380px) ───────────── */
+        @media (max-width: 380px) {
           .uber99-kpi-row { grid-template-columns: 1fr !important; }
+          .uber99-kpi-card { min-height: auto !important; }
+          .uber99-insight-cards { grid-template-columns: 1fr !important; }
+          .uber99-chart { height: 170px !important; }
         }
       `}</style>
     </div>

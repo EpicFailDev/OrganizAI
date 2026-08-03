@@ -1641,14 +1641,50 @@ body {
   max-width: var(--lineWidth, 160px);
 }
 
-/* Transição de tela estilo iOS */
-@keyframes iosViewIn {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ===== iOS DIRECTIONAL VIEW TRANSITION (push/pop) ===== */
+.ios-view-stack {
+  position: relative;
 }
 
-.ios-view-transition {
-  animation: iosViewIn 0.32s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+.ios-view-pane {}
+
+.ios-view-enter {
+  position: relative;
+  z-index: 1;
+}
+
+.ios-view-exit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--bg-app);
+  pointer-events: none;
+  overflow: hidden;
+  will-change: transform;
+}
+
+.ios-enter-forward, .ios-enter-back { will-change: transform; }
+
+.ios-enter-forward { animation: iosEnterForward 0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.ios-enter-back    { animation: iosEnterBack 0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.ios-exit-forward  { animation: iosExitForward 0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.ios-exit-back     { animation: iosExitBack 0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
+
+@keyframes iosEnterForward {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes iosEnterBack {
+  from { transform: translateX(-30%); }
+  to   { transform: translateX(0); }
+}
+@keyframes iosExitForward {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-30%); }
+}
+@keyframes iosExitBack {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
 }
 
 @keyframes iosTitleIn {

@@ -1,9 +1,10 @@
-import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import { supabase, cachedQuery } from './supabaseClient';
 import { ProfileSelector } from './components/ProfileSelector';
 import { Sidebar } from './components/Sidebar';
 import { MobileTabBar } from './components/MobileTabBar';
 import { MobileHeader } from './components/MobileHeader';
+import { ViewStack } from './components/ViewStack';
 import { Loader2, Users, Menu } from 'lucide-react';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { Onboarding, isOnboardingComplete } from './components/Onboarding';
@@ -63,6 +64,23 @@ interface ReceiptItem {
   line_number?: number;
 }
 
+/** Tab order used to compute the directional transition (forward = advancing, back = retreating). */
+const VIEW_ORDER: Record<string, number> = {
+  dashboard: 0,
+  'transactions-uber99': 1,
+  'transactions-salgados': 1,
+  transactions: 1,
+  'transactions-entradas': 1.5,
+  'transactions-saidas': 1.5,
+  relatorios: 2,
+  metas: 3,
+  family: 4,
+  categories: 5,
+  orcamentos: 6,
+  planejamento: 7,
+  calendario: 8,
+};
+
 function LoadingSkeleton() {
   return (
     <div className="ios-loading">
@@ -82,6 +100,9 @@ function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [view, setView] = useState('dashboard');
+  const [viewDirection, setViewDirection] = useState<'forward' | 'back'>('forward');
+  const prevViewRef = useRef<string>(view);
+  const contentRef = useRef<HTMLElement | null>(null);
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
@@ -262,12 +283,25 @@ function App() {
     await fetchFinancialData();
   }, [fetchFinancialData]);
 
+  // Reset scroll to top on every screen change (iOS tab behavior) so the
+  // directional exit pane (absolutely positioned at the top) stays visible.
+  useEffect(() => {
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+  }, [view]);
+
   const handleViewChange = useCallback((newView: string) => {
-    if (newView === 'entradas') setView('transactions-entradas');
-    else if (newView === 'saidas') setView('transactions-saidas');
-    else if (newView === 'salgados') setView('transactions-salgados');
-    else if (newView === 'uber99') setView('transactions-uber99');
-    else setView(newView);
+    let target = newView;
+    if (newView === 'entradas') target = 'transactions-entradas';
+    else if (newView === 'saidas') target = 'transactions-saidas';
+    else if (newView === 'salgados') target = 'transactions-salgados';
+    else if (newView === 'uber99') target = 'transactions-uber99';
+
+    // Directional transition: advancing in tab order slides left, going back slides right.
+    const prevOrder = VIEW_ORDER[prevViewRef.current] ?? 0;
+    const nextOrder = VIEW_ORDER[target] ?? 0;
+    setViewDirection(nextOrder >= prevOrder ? 'forward' : 'back');
+    prevViewRef.current = target;
+    setView(target);
   }, []);
 
   // Determine mobile header title
@@ -296,8 +330,8 @@ function App() {
     return undefined;
   };
 
-  const renderView = () => {
-    if (!familyId && view !== 'family') {
+  const renderViewFor = (v: string) => {
+    if (!familyId && v !== 'family') {
       return (
         <div className="ios-empty">
           <div className="ios-empty-icon">
@@ -320,7 +354,7 @@ function App() {
 
     return (
       <Suspense fallback={<LoadingSkeleton />}>
-        {view === 'dashboard' && (
+        {v === 'dashboard' && (
           <Dashboard
             transactions={transactions}
             profileName={profile?.display_name}
@@ -329,12 +363,12 @@ function App() {
             profession={profile?.profession}
           />
         )}
-        {view === 'transactions-uber99' && (
+        {v === 'transactions-uber99' && (
           <Uber99Dashboard transactions={transactions} />
         )}
-        {view.startsWith('transactions') && view !== 'transactions-uber99' && (
+        {v.startsWith('transactions') && v !== 'transactions-uber99' && (
           <TransactionsList
-            key={view}
+            key={v}
             transactions={transactions}
             categories={categories}
             onDeleteTransaction={handleDeleteTransaction}
@@ -342,20 +376,20 @@ function App() {
             familyId={familyId || ''}
             userId={session.user.id}
             presetType={
-              view === 'transactions-entradas' ? 'income' :
-              view === 'transactions-saidas' ? 'expense' : 'all'
+              v === 'transactions-entradas' ? 'income' :
+              v === 'transactions-saidas' ? 'expense' : 'all'
             }
-            presetSearch={view === 'transactions-salgados' ? 'Salgados' : ''}
+            presetSearch={v === 'transactions-salgados' ? 'Salgados' : ''}
           />
         )}
-        {view === 'categories' && (
+        {v === 'categories' && (
           <CategoryManager
             categories={categories}
             familyId={familyId || ''}
             onRefreshCategories={handleRefreshCategories}
           />
         )}
-        {view === 'family' && (
+        {v === 'family' && (
           <FamilySettings
             familyId={familyId}
             familyName={familyName}
@@ -363,17 +397,17 @@ function App() {
             onRefreshFamily={handleRefreshFamily}
           />
         )}
-        {view === 'orcamentos' && (
+        {v === 'orcamentos' && (
           <Orcamentos familyId={familyId || ''} categories={categories} transactions={transactions} />
         )}
-        {view === 'metas' && <Metas familyId={familyId || ''} />}
-        {view === 'planejamento' && (
+        {v === 'metas' && <Metas familyId={familyId || ''} />}
+        {v === 'planejamento' && (
           <Planejamento familyId={familyId || ''} categories={categories} userId={session.user.id} />
         )}
-        {view === 'relatorios' && (
+        {v === 'relatorios' && (
           <Relatorios transactions={transactions} categories={categories} />
         )}
-        {view === 'calendario' && (
+        {v === 'calendario' && (
           <Calendario
             transactions={transactions}
             categories={categories}
@@ -434,10 +468,10 @@ function App() {
       )}
 
       {/* Main scrollable content */}
-      <main className="ios-content">
-        <div key={view} className="ios-content-inner stagger ios-view-transition">
-          {renderView()}
-        </div>
+      <main className="ios-content" ref={contentRef}>
+        <ViewStack view={view} direction={viewDirection}>
+          {renderViewFor(view)}
+        </ViewStack>
       </main>
 
       {/* iOS Bottom Tab Bar */}
