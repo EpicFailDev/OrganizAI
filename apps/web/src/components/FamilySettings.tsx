@@ -66,25 +66,8 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
     setSuccessMsg('');
 
     try {
-      // 1. Create family group
-      const { data: groupData, error: groupError } = await supabase
-        .from('family_groups')
-        .insert({ name: newFamilyName })
-        .select()
-        .single();
-
-      if (groupError) throw groupError;
-
-      // 2. Link current user as administrator of the group
-      const { error: memberError } = await supabase
-        .from('family_members')
-        .insert({
-          family_id: groupData.id,
-          profile_id: userId,
-          role: 'admin'
-        });
-
-      if (memberError) throw memberError;
+      const { error } = await supabase.rpc('create_family', { p_name: newFamilyName });
+      if (error) throw error;
 
       setSuccessMsg('Grupo familiar criado com sucesso!');
       await onRefreshFamily();
@@ -104,37 +87,10 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
     setSuccessMsg('');
 
     try {
-      // 1. Check if family group with given ID exists
-      const { data: groupData, error: groupError } = await supabase
-        .from('family_groups')
-        .select('*')
-        .eq('id', joinFamilyId)
-        .single();
+      const { error } = await supabase.rpc('join_family', { p_invite_code: joinFamilyId });
+      if (error) throw error;
 
-      if (groupError || !groupData) throw new Error('Grupo familiar não encontrado. Certifique-se de que o ID é válido.');
-
-      // 2. Check if user is already a member of this family
-      const { data: checkMember } = await supabase
-        .from('family_members')
-        .select('*')
-        .eq('family_id', joinFamilyId)
-        .eq('profile_id', userId)
-        .maybeSingle();
-
-      if (checkMember) throw new Error('Você já faz parte deste grupo familiar.');
-
-      // 3. Link current user as member of family
-      const { error: memberError } = await supabase
-        .from('family_members')
-        .insert({
-          family_id: joinFamilyId,
-          profile_id: userId,
-          role: 'member'
-        });
-
-      if (memberError) throw memberError;
-
-      setSuccessMsg(`Você ingressou no grupo familiar "${groupData.name}" com sucesso!`);
+      setSuccessMsg('Você ingressou no grupo familiar com sucesso!');
       await onRefreshFamily();
     } catch (err: any) {
       setErrorMsg(err.message || 'Erro ao ingressar no grupo familiar.');
