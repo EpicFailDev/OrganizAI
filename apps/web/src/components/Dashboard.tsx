@@ -1,25 +1,19 @@
 import React, { useMemo } from 'react';
 import { 
   Wallet, 
-  Search, 
-  Bell, 
-  ChevronDown, 
-  Target,
-  Users,
-  Calendar,
+  TrendingUp, 
+  TrendingDown, 
+  Target as TargetIcon,
   ArrowUpRight,
   ArrowDownRight,
+  ChevronRight,
   Download,
-  TrendingUp,
-  TrendingDown,
-  Target as TargetIcon
 } from 'lucide-react';
 import { 
   AreaChart, 
   Area, 
   XAxis, 
   YAxis, 
-  CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
   PieChart as RechartsPieChart, 
@@ -54,670 +48,318 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const name = profileName || 'Usuário';
 
-  // 1. Core Calculations
   const stats = useMemo(() => {
     let income = 0;
     let expense = 0;
-    
     transactions.forEach(t => {
       const amount = Number(t.amount);
-      if (t.type === 'income') {
-        income += amount;
-      } else {
-        expense += amount;
-      }
+      if (t.type === 'income') income += amount;
+      else expense += amount;
     });
-
-    return {
-      income,
-      expense,
-      balance: income - expense
-    };
+    return { income, expense, balance: income - expense };
   }, [transactions]);
 
-  // 2. Cash Flow Chart Data (last 30 days grouped in 5 steps)
   const cashFlowData = useMemo(() => {
     const data = [
-      { name: '01 Mai', Entradas: 0, Saídas: 0, Saldo: 0 },
-      { name: '08 Mai', Entradas: 0, Saídas: 0, Saldo: 0 },
-      { name: '15 Mai', Entradas: 0, Saídas: 0, Saldo: 0 },
-      { name: '22 Mai', Entradas: 0, Saídas: 0, Saldo: 0 },
-      { name: '31 Mai', Entradas: 0, Saídas: 0, Saldo: 0 },
+      { name: 'Sem 1', Entradas: 0, Saídas: 0 },
+      { name: 'Sem 2', Entradas: 0, Saídas: 0 },
+      { name: 'Sem 3', Entradas: 0, Saídas: 0 },
+      { name: 'Sem 4', Entradas: 0, Saídas: 0 },
     ];
-
     transactions.forEach(t => {
       const amt = Number(t.amount);
       const day = new Date(t.date).getDate();
-      let index = 4;
+      let index = 3;
       if (day <= 7) index = 0;
       else if (day <= 14) index = 1;
       else if (day <= 21) index = 2;
-      else if (day <= 28) index = 3;
-
-      if (t.type === 'income') {
-        data[index].Entradas += amt;
-      } else {
-        data[index].Saídas += amt;
-      }
+      if (t.type === 'income') data[index].Entradas += amt;
+      else data[index].Saídas += amt;
     });
-
-    let runningBalance = 0;
-    return data.map(item => {
-      runningBalance += (item.Entradas - item.Saídas);
-      return {
-        ...item,
-        Entradas: Math.round(item.Entradas),
-        Saídas: Math.round(item.Saídas),
-        Saldo: Math.round(runningBalance)
-      };
-    });
-  }, [transactions]);
-
-  // 3. Donut Chart (Distribuição de Gastos)
-  const donutChartData = useMemo(() => {
-    const expenseMap: Record<string, { name: string; value: number; color: string }> = {};
-
-    transactions.forEach(t => {
-      if (t.type === 'expense') {
-        const categoryName = t.categories?.name || 'Outros';
-        const color = t.categories?.color || '#6b7280';
-        const amount = Number(t.amount);
-
-        if (expenseMap[categoryName]) {
-          expenseMap[categoryName].value += amount;
-        } else {
-          expenseMap[categoryName] = { name: categoryName, value: amount, color };
-        }
-      }
-    });
-
-    const data = Object.values(expenseMap).sort((a, b) => b.value - a.value);
-    
-    if (data.length === 0) {
-      return [
-        { name: 'Transporte', value: 1327, color: '#1e3a5f' },
-        { name: 'Alimentação', value: 1031, color: '#2563eb' },
-        { name: 'Casa', value: 853, color: '#3b82f6' },
-        { name: 'Saúde', value: 426, color: '#60a5fa' },
-        { name: 'Lazer', value: 341, color: '#93c5fd' },
-        { name: 'Outros', value: 286, color: '#bfdbfe' },
-      ];
-    }
-    return data;
-  }, [transactions]);
-
-  const totalExpenseSum = useMemo(() => {
-    return donutChartData.reduce((sum, item) => sum + item.value, 0);
-  }, [donutChartData]);
-
-  // 4. Category Accounts
-  const categoryAccounts = useMemo(() => {
-    const map: Record<string, { name: string; amount: number; color: string }> = {};
-
-    transactions.forEach(t => {
-      const categoryName = t.categories?.name || 'Outros';
-      const color = t.categories?.color || '#6b7280';
-      const amount = Number(t.amount);
-
-      if (map[categoryName]) {
-        map[categoryName].amount += amount;
-      } else {
-        map[categoryName] = { name: categoryName, amount, color };
-      }
-    });
-
-    const list = Object.values(map).sort((a, b) => b.amount - a.amount);
-    const totalAll = list.reduce((sum, item) => sum + item.amount, 0);
-
-    if (list.length === 0) {
-      return [
-        { name: 'Uber / 99', amount: 5820, color: '#10b981', percentage: 46 },
-        { name: 'Salgados (Vendas)', amount: 4250, color: '#f59e0b', percentage: 34 },
-        { name: 'Outras entradas', amount: 2470, color: '#3b82f6', percentage: 20 }
-      ];
-    }
-
-    return list.map(item => ({
-      ...item,
-      percentage: totalAll > 0 ? Math.round((item.amount / totalAll) * 100) : 0
+    return data.map(d => ({
+      ...d,
+      Entradas: Math.round(d.Entradas),
+      Saídas: Math.round(d.Saídas),
     }));
   }, [transactions]);
 
-  // 5. Recent Transactions
+  const donutChartData = useMemo(() => {
+    const expenseMap: Record<string, { name: string; value: number; color: string }> = {};
+    transactions.forEach(t => {
+      if (t.type === 'expense') {
+        const cat = t.categories?.name || 'Outros';
+        const color = t.categories?.color || '#6b7280';
+        const amount = Number(t.amount);
+        if (expenseMap[cat]) expenseMap[cat].value += amount;
+        else expenseMap[cat] = { name: cat, value: amount, color };
+      }
+    });
+    const data = Object.values(expenseMap).sort((a, b) => b.value - a.value);
+    if (data.length === 0) {
+      return [
+        { name: 'Transporte', value: 1327, color: '#5856d6' },
+        { name: 'Alimentação', value: 1031, color: '#34c759' },
+        { name: 'Casa', value: 853, color: '#007aff' },
+        { name: 'Saúde', value: 426, color: '#ff9500' },
+        { name: 'Outros', value: 341, color: '#af52de' },
+      ];
+    }
+    return data.slice(0, 5);
+  }, [transactions]);
+
+  const totalExpenseSum = useMemo(() => 
+    donutChartData.reduce((sum, item) => sum + item.value, 0),
+    [donutChartData]
+  );
+
   const recentList = useMemo(() => {
     const list = [...transactions]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 4);
-
+      .slice(0, 5);
     if (list.length === 0) {
       return [
-        { id: '1', description: '99 Pop - Corrida', date: 'Hoje, 10:45', type: 'income' as const, amount: 28.40, categoryName: 'Uber / 99', color: '#10b981', creator: 'Guilherme' },
-        { id: '2', description: 'Venda de Salgados', date: 'Hoje, 09:15', type: 'income' as const, amount: 150.00, categoryName: 'Salgados', color: '#f59e0b', creator: 'Guilherme' },
-        { id: '3', description: 'Combustível', date: 'Hoje, 08:30', type: 'expense' as const, amount: 120.00, categoryName: 'Transporte', color: '#ef4444', creator: 'Guilherme' },
-        { id: '4', description: 'Mercado', date: 'Ontem, 18:20', type: 'expense' as const, amount: 89.50, categoryName: 'Alimentação', color: '#ef4444', creator: 'Guilherme' }
+        { id: '1', description: '99 Pop - Corrida', date: 'Hoje', type: 'income' as const, amount: 28.40, color: '#30d158' },
+        { id: '2', description: 'Venda Salgados', date: 'Hoje', type: 'income' as const, amount: 150.00, color: '#ff9500' },
+        { id: '3', description: 'Combustível', date: 'Ontem', type: 'expense' as const, amount: 120.00, color: '#ff453a' },
       ];
     }
-
     return list.map(t => ({
       id: t.id,
       description: t.description,
       date: new Date(t.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }),
       type: t.type,
       amount: Number(t.amount),
-      categoryName: t.categories?.name || 'Geral',
-      color: t.categories?.color || '#9ca3af',
-      creator: t.profiles?.display_name ? t.profiles.display_name.split(' ')[0] : 'Usuário'
+      color: t.categories?.color || '#8e8e93',
     }));
   }, [transactions]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
+      style: 'currency', currency: 'BRL',
     }).format(value);
   };
 
-  // Budget percentage for meta card
   const budgetPercentage = useMemo(() => {
     const limit = 3500;
     if (stats.expense <= 0) return 0;
-    const pct = Math.round((stats.expense / limit) * 100);
-    return Math.min(pct, 100);
+    return Math.min(Math.round((stats.expense / limit) * 100), 100);
   }, [stats]);
 
-  // Mock trends
-  const balanceTrend = 12;
-  const incomeTrend = 8;
-  const expenseTrend = 5;
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      
-      {/* Top Header Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
-            Olá, {name}! 👋
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
-            Aqui está o resumo financeiro da sua família.
-          </p>
+    <>
+      {/* Balance hero */}
+      <div className="ios-kpi-card primary" onClick={() => onNavigate?.('transactions')} style={{ cursor: 'pointer' }}>
+        <div className="ios-kpi-header">
+          <span className="ios-kpi-label">Saldo Total</span>
+          <div className="ios-kpi-icon" style={{ background: 'rgba(48, 209, 88, 0.2)' }}>
+            <Wallet size={16} color="#30d158" />
+          </div>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {/* Search */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={16} style={{ position: 'absolute', left: '0.85rem', color: 'var(--text-muted)' }} />
-            <input 
-              type="text" 
-              placeholder="Buscar" 
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '50px',
-                padding: '0.55rem 1rem 0.55rem 2.25rem',
-                width: '200px',
-                fontSize: '0.85rem',
-                color: '#fff',
-                outline: 'none',
-                fontFamily: 'var(--font-body)',
-                transition: 'all var(--transition-fast)'
-              }}
-            />
-          </div>
-
-          {/* Notifications */}
-          <div style={{
-            position: 'relative',
-            cursor: 'pointer',
-            backgroundColor: 'rgba(255,255,255,0.02)',
-            border: '1px solid var(--border-color)',
-            padding: '0.55rem',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-            onClick={() => onNavigate?.('dashboard')}
-          >
-            <Bell size={18} color="var(--text-secondary)" />
-            <span style={{
-              position: 'absolute',
-              top: '-2px',
-              right: '-2px',
-              backgroundColor: 'var(--color-primary)',
-              borderRadius: '50%',
-              width: '8px',
-              height: '8px'
-            }} />
-          </div>
-
-          {/* Profile */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            cursor: 'pointer'
-          }}
-            onClick={() => onNavigate?.('family')}
-          >
-            <div style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--color-primary) 0%, #059669 100%)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '0.85rem'
-            }}>
-              {name.substring(0, 2).toUpperCase()}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                {name} <ChevronDown size={14} color="var(--text-secondary)" />
-              </span>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Administrador</span>
-            </div>
-          </div>
+        <div className="ios-kpi-value" style={{ color: '#30d158' }}>
+          {formatCurrency(stats.balance)}
+        </div>
+        <div className="ios-kpi-trend up">
+          <TrendingUp size={11} /> +12% vs mês anterior
         </div>
       </div>
 
-      {/* Date Filter */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-        <div style={{
-          backgroundColor: 'rgba(255,255,255,0.02)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '0.45rem 0.85rem',
-          fontSize: '0.78rem',
-          fontWeight: '600',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          cursor: 'pointer'
-        }}
-          onClick={() => onNavigate?.('calendario')}
-        >
-          <span>01/05/2024 - 31/05/2024</span>
-          <Calendar size={14} />
-        </div>
-      </div>
-
-      {/* Four KPI Cards Row */}
-      <div className="dashboard-kpis">
-        {/* 1. Saldo Total - Green card */}
-        <div className="kpi-card-mock saldo-total" onClick={() => onNavigate?.('transactions')} style={{ cursor: 'pointer' }}>
-          <div className="kpi-label">
-            <span>Saldo Total</span>
-            <div style={{ backgroundColor: 'rgba(255,255,255,0.15)', padding: '0.35rem', borderRadius: '50%' }}>
-              <Wallet size={16} color="#fff" />
-            </div>
+      {/* KPI Grid */}
+      <div className="ios-kpi-grid">
+        <div className="ios-kpi-card" onClick={() => onNavigate?.('entradas')} style={{ cursor: 'pointer' }}>
+          <div className="ios-kpi-header">
+            <span className="ios-kpi-label">Entradas</span>
+            <ArrowUpRight size={14} color="#30d158" />
           </div>
-          <div className="kpi-val">
-            {formatCurrency(stats.balance)}
-          </div>
-          <div className="kpi-trend up" style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.1)', color: '#fff' }}>
-            <TrendingUp size={12} /> {balanceTrend}% vs mês anterior
-          </div>
-          {/* Mini sparkline */}
-          <div className="kpi-sparkline" style={{ display: 'flex', alignItems: 'flex-end', opacity: 0.15 }}>
-            <svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none">
-              <path d="M0,20 Q15,5 30,15 T60,8 T90,22 T100,12 L100,30 L0,30 Z" fill="#ffffff" />
-            </svg>
-          </div>
-        </div>
-
-        {/* 2. Total de Entradas */}
-        <div className="kpi-card-mock" onClick={() => onNavigate?.('entradas')} style={{ cursor: 'pointer' }}>
-          <div className="kpi-label">
-            <span>Total de Entradas</span>
-            <div style={{ backgroundColor: 'var(--color-income-bg)', padding: '0.35rem', borderRadius: '50%' }}>
-              <Download size={16} color="var(--color-income)" />
-            </div>
-          </div>
-          <div className="kpi-val" style={{ color: 'var(--color-income)' }}>
+          <div className="ios-kpi-value" style={{ color: '#30d158', fontSize: '1.25rem' }}>
             {formatCurrency(stats.income)}
           </div>
-          <div className="kpi-trend up">
-            <TrendingUp size={12} /> {incomeTrend}% vs mês anterior
-          </div>
-          <div className="kpi-sparkline" style={{ display: 'flex', alignItems: 'flex-end', opacity: 0.08 }}>
-            <svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none">
-              <path d="M0,25 Q20,8 40,20 T80,4 T100,15 L100,30 L0,30 Z" fill="var(--color-income)" />
-            </svg>
+          <div className="ios-kpi-trend up">
+            <TrendingUp size={11} /> +8%
           </div>
         </div>
 
-        {/* 3. Total de Saídas */}
-        <div className="kpi-card-mock" onClick={() => onNavigate?.('saidas')} style={{ cursor: 'pointer' }}>
-          <div className="kpi-label">
-            <span>Total de Saídas</span>
-            <div style={{ backgroundColor: 'var(--color-expense-bg)', padding: '0.35rem', borderRadius: '50%' }}>
-              <ArrowUpRight size={16} color="var(--color-expense)" />
-            </div>
+        <div className="ios-kpi-card" onClick={() => onNavigate?.('saidas')} style={{ cursor: 'pointer' }}>
+          <div className="ios-kpi-header">
+            <span className="ios-kpi-label">Saídas</span>
+            <ArrowDownRight size={14} color="#ff453a" />
           </div>
-          <div className="kpi-val" style={{ color: 'var(--color-expense)' }}>
+          <div className="ios-kpi-value" style={{ color: '#ff453a', fontSize: '1.25rem' }}>
             {formatCurrency(stats.expense)}
           </div>
-          <div className="kpi-trend down">
-            <TrendingDown size={12} /> {expenseTrend}% vs mês anterior
-          </div>
-          <div className="kpi-sparkline" style={{ display: 'flex', alignItems: 'flex-end', opacity: 0.08 }}>
-            <svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none">
-              <path d="M0,15 Q25,25 50,8 T90,18 T100,28 L100,30 L0,30 Z" fill="var(--color-expense)" />
-            </svg>
-          </div>
-        </div>
-
-        {/* 4. Meta do mês */}
-        <div className="kpi-card-mock" onClick={() => onNavigate?.('metas')} style={{ cursor: 'pointer' }}>
-          <div className="kpi-label">
-            <span>Meta do mês</span>
-            <div style={{ backgroundColor: 'var(--color-meta-bg)', padding: '0.35rem', borderRadius: '50%' }}>
-              <TargetIcon size={16} color="var(--color-meta)" />
-            </div>
-          </div>
-          <div className="kpi-val" style={{ color: '#ffffff' }}>
-            R$ 3.500,00
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-              <span>{budgetPercentage}%</span>
-            </div>
-            <div className="kpi-progress-container" style={{ margin: 0, height: '6px' }}>
-              <div className="kpi-progress-bar" style={{ 
-                width: `${budgetPercentage}%`, 
-                backgroundColor: budgetPercentage > 90 ? 'var(--color-expense)' : 'var(--color-meta)' 
-              }} />
-            </div>
+          <div className="ios-kpi-trend down">
+            <TrendingDown size={11} /> +5%
           </div>
         </div>
       </div>
 
-      {/* Middle Charts Grid */}
-      <div className="section-grid">
-        {/* Fluxo de Caixa Line Chart */}
-        <div className="dashboard-card">
-          <div className="card-header-mock">
-            <div>
-              <h3 className="card-title-mock">Fluxo de Caixa</h3>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.45rem 0.75rem',
-              fontSize: '0.75rem',
-              color: '#fff',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
-              onClick={() => onNavigate?.('relatorios')}
-            >
-              <span>Este mês</span>
-              <ChevronDown size={14} />
-            </div>
-          </div>
-
+      {/* Cash Flow Chart */}
+      <div className="ios-chart-card">
+        <div className="ios-chart-card-header">
+          <h3 className="ios-chart-card-title">Fluxo de Caixa</h3>
+          <button className="ios-section-action" onClick={() => onNavigate?.('relatorios')}>
+            Ver mais
+          </button>
+        </div>
+        <div style={{ padding: '0 0.5rem 0.75rem' }}>
           {/* Legend */}
-          <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.75rem', fontSize: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)' }}>
-              <span style={{ width: '16px', height: '2px', backgroundColor: 'var(--color-income)', borderRadius: '2px' }} />
+          <div style={{ display: 'flex', gap: '1rem', padding: '0 0.75rem 0.5rem', fontSize: '0.7rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
+              <span style={{ width: 8, height: 2, background: '#30d158', borderRadius: 2 }} />
               Entradas
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)' }}>
-              <span style={{ width: '16px', height: '2px', backgroundColor: 'var(--color-expense)', borderRadius: '2px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
+              <span style={{ width: 8, height: 2, background: '#ff453a', borderRadius: 2 }} />
               Saídas
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)' }}>
-              <span style={{ width: '16px', height: '2px', backgroundColor: '#ffffff', borderRadius: '2px' }} />
-              Saldo
-            </div>
           </div>
-
-          <div style={{ width: '100%', height: '240px' }}>
+          <div style={{ width: '100%', height: 180 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={cashFlowData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={cashFlowData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-income)" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="var(--color-income)" stopOpacity={0.0}/>
+                  <linearGradient id="gIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#30d158" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#30d158" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-expense)" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="var(--color-expense)" stopOpacity={0.0}/>
-                  </linearGradient>
-                  <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#fff" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#fff" stopOpacity={0.0}/>
+                  <linearGradient id="gExpense" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ff453a" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#ff453a" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v >= 1000 ? v / 1000 + 'k' : v}`} />
+                <XAxis dataKey="name" stroke="var(--text-quaternary)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--text-quaternary)" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
                 <Tooltip 
                   formatter={(value) => [formatCurrency(Number(value))]}
                   contentStyle={{ 
-                    backgroundColor: '#0c101b', 
-                    borderColor: 'rgba(255,255,255,0.08)',
-                    borderRadius: 'var(--radius-md)',
-                    color: '#fff',
-                    boxShadow: 'var(--shadow-md)'
+                    backgroundColor: '#2c2c2e', 
+                    border: 'none',
+                    borderRadius: 12, 
+                    color: '#fff', 
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                    fontSize: 12,
                   }}
                   itemStyle={{ color: '#fff' }}
-                  labelStyle={{ color: 'var(--text-secondary)', fontWeight: 600 }}
                 />
-                <Area type="monotone" dataKey="Entradas" stroke="var(--color-income)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorEntradas)" activeDot={{ r: 5 }} />
-                <Area type="monotone" dataKey="Saídas" stroke="var(--color-expense)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSaidas)" activeDot={{ r: 5 }} />
-                <Area type="monotone" dataKey="Saldo" stroke="#ffffff" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSaldo)" activeDot={{ r: 5 }} />
+                <Area type="monotone" dataKey="Entradas" stroke="#30d158" strokeWidth={2} fillOpacity={1} fill="url(#gIncome)" />
+                <Area type="monotone" dataKey="Saídas" stroke="#ff453a" strokeWidth={2} fillOpacity={1} fill="url(#gExpense)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
 
-        {/* Distribuição de Gastos Donut Chart */}
-        <div className="dashboard-card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="card-header-mock" style={{ marginBottom: '0.5rem' }}>
-            <div>
-              <h3 className="card-title-mock">Distribuição de Gastos</h3>
+      {/* Donut Chart */}
+      <div className="ios-chart-card">
+        <div className="ios-chart-card-header">
+          <h3 className="ios-chart-card-title">Distribuição de Gastos</h3>
+          <button className="ios-section-action" onClick={() => onNavigate?.('relatorios')}>
+            Ver mais
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0 1rem 1rem' }}>
+          <div style={{ width: 120, height: 120, position: 'relative', flexShrink: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsPieChart>
+                <Pie
+                  data={donutChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={36}
+                  outerRadius={54}
+                  paddingAngle={3}
+                  dataKey="value"
+                  strokeWidth={0}
+                >
+                  {donutChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+              </RechartsPieChart>
+            </ResponsiveContainer>
+            <div style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)', textAlign: 'center',
+            }}>
+              <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff' }}>
+                {formatCurrency(totalExpenseSum)}
+              </p>
             </div>
-            <div style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.25rem' }}
-              onClick={() => onNavigate?.('relatorios')}
-            >⋯</div>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '1rem' }}>
-            <div style={{ width: '100%', height: '160px', position: 'relative' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsPieChart>
-                  <Pie
-                    data={donutChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={70}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {donutChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </RechartsPieChart>
-              </ResponsiveContainer>
-              <div style={{
-                position: 'absolute',
-                top: '52%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                textAlign: 'center',
-                pointerEvents: 'none'
-              }}>
-                <p style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
-                  {formatCurrency(totalExpenseSum)}
-                </p>
-                <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total</p>
-              </div>
-            </div>
-
-            {/* Legends list */}
-            <div className="chart-legend-container" style={{ width: '100%', maxHeight: '120px', overflowY: 'auto' }}>
-              {donutChartData.map((item, idx) => {
-                const percentage = totalExpenseSum > 0 ? Math.round((item.value / totalExpenseSum) * 100) : 0;
-                return (
-                  <div className="chart-legend-row" key={idx}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => onNavigate?.('transactions')}
-                  >
-                    <span className="chart-legend-label">
-                      <span className="chart-legend-dot" style={{ backgroundColor: item.color, color: item.color }} />
-                      {item.name}
-                    </span>
-                    <span className="chart-legend-value">{percentage}%</span>
-                  </div>
-                );
-              })}
-            </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {donutChartData.slice(0, 4).map((item, idx) => {
+              const pct = totalExpenseSum > 0 ? Math.round((item.value / totalExpenseSum) * 100) : 0;
+              return (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{item.name}</span>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>{pct}%</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Bottom section Grid */}
-      <div className="section-grid">
-        {/* Contas por Categoria */}
-        <div className="dashboard-card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="card-header-mock" style={{ marginBottom: '1rem' }}>
-            <div>
-              <h3 className="card-title-mock">Contas por Categoria</h3>
+      {/* Budget progress */}
+      <div className="ios-card">
+        <div className="ios-card-body" onClick={() => onNavigate?.('metas')} style={{ cursor: 'pointer' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <TargetIcon size={16} color="var(--color-meta)" />
+              <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Meta do Mês</span>
             </div>
-            <span
-              style={{ fontSize: '0.78rem', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}
-              onClick={() => onNavigate?.('transactions')}
-            >
-              Ver todas
-            </span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{budgetPercentage}%</span>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1 }}>
-            {categoryAccounts.map((account, idx) => (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', cursor: 'pointer' }}
-                onClick={() => onNavigate?.('transactions')}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.88rem', fontWeight: 600 }}>
-                  <span style={{ color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      backgroundColor: account.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      color: '#fff'
-                    }}>
-                      {account.name.substring(0, 2).toUpperCase()}
-                    </span>
-                    {account.name}
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      {formatCurrency(account.amount)}
-                    </span>
-                    <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem', minWidth: '35px', textAlign: 'right' }}>
-                      {account.percentage}%
-                    </span>
-                  </div>
-                </div>
-                <div className="kpi-progress-container" style={{ margin: 0, height: '6px' }}>
-                  <div className="kpi-progress-bar" style={{
-                    width: `${account.percentage}%`,
-                    backgroundColor: account.color || 'var(--color-primary)'
-                  }} />
-                </div>
-              </div>
-            ))}
+          <div style={{
+            width: '100%', height: 6, borderRadius: 3,
+            background: 'rgba(255, 255, 255, 0.06)', overflow: 'hidden'
+          }}>
+            <div style={{
+              width: `${budgetPercentage}%`, height: '100%', borderRadius: 3,
+              background: budgetPercentage > 90 ? '#ff453a' : 'var(--color-meta)',
+              transition: 'width 0.6s ease',
+            }} />
           </div>
-        </div>
-
-        {/* Últimas Transações */}
-        <div className="dashboard-card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="card-header-mock" style={{ marginBottom: '1rem' }}>
-            <div>
-              <h3 className="card-title-mock">Últimas Transações</h3>
-            </div>
-            <span
-              style={{ fontSize: '0.78rem', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 600 }}
-              onClick={() => onNavigate?.('transactions')}
-            >
-              Ver todas
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', flex: 1 }}>
-            {recentList.map((t) => (
-              <div
-                key={t.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.01)',
-                  border: '1px solid var(--border-color)',
-                  transition: 'all var(--transition-fast)',
-                  cursor: 'pointer'
-                }}
-                onClick={() => onNavigate?.('transactions')}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    backgroundColor: t.type === 'income' ? 'var(--color-income-bg)' : 'var(--color-expense-bg)',
-                    color: t.type === 'income' ? 'var(--color-income)' : 'var(--color-expense)',
-                    border: '1px solid',
-                    borderColor: t.type === 'income' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: '0.85rem'
-                  }}>
-                    {t.type === 'income' ? '+' : '-'}
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff' }}>
-                      {t.description}
-                    </h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.1rem' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
-                        {t.date} • <span style={{ color: t.color }}>{t.categoryName}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{
-                  fontSize: '0.9rem',
-                  fontWeight: 700,
-                  color: t.type === 'income' ? 'var(--color-income)' : 'var(--color-expense)'
-                }}>
-                  {t.type === 'income' ? '+' : '-'} {formatCurrency(t.amount)}
-                </div>
-              </div>
-            ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.4rem' }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>R$ 0</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>R$ 3.500</span>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Recent Transactions */}
+      <div className="ios-section-header">
+        <span className="ios-section-title">Últimas Transações</span>
+        <button className="ios-section-action" onClick={() => onNavigate?.('transactions')}>
+          Ver todas
+        </button>
+      </div>
+
+      <div className="ios-grouped-list stagger">
+        {recentList.map((t) => (
+          <div
+            key={t.id}
+            className="ios-list-item"
+            onClick={() => onNavigate?.('transactions')}
+          >
+            <div className="ios-list-item-icon" style={{
+              background: t.type === 'income' ? 'var(--color-income-bg)' : 'var(--color-expense-bg)',
+              color: t.type === 'income' ? '#30d158' : '#ff453a',
+            }}>
+              {t.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+            </div>
+            <div className="ios-list-item-content">
+              <div className="ios-list-item-title">{t.description}</div>
+              <div className="ios-list-item-subtitle">{t.date}</div>
+            </div>
+            <span className="ios-tx-amount" style={{
+              color: t.type === 'income' ? '#30d158' : '#ff453a',
+            }}>
+              {t.type === 'income' ? '+' : '-'} {formatCurrency(t.amount)}
+            </span>
+            <ChevronRight size={14} color="var(--text-quaternary)" />
+          </div>
+        ))}
+      </div>
+    </>
   );
 };

@@ -6,7 +6,9 @@ import {
   Filter,
   X,
   FileText,
-  Loader2
+  ChevronRight,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react';
 import { formatCurrency } from '../utils';
 import { getSignedAttachmentUrl } from '../lib/storage';
@@ -94,8 +96,8 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerReceiptItems, setViewerReceiptItems] = useState<{ transaction: Transaction; items: ReceiptItem[] } | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Bucket privado: resolve a URL assinada antes de exibir o comprovante
   const openViewer = async (value?: string) => {
     if (!value) return;
     setViewerLoading(true);
@@ -116,14 +118,11 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
       const matchSearch = !searchTerm || t.description.toLowerCase().includes(lowerSearch) ||
                           t.categories?.name?.toLowerCase().includes(lowerSearch) ||
                           t.subcategories?.name?.toLowerCase().includes(lowerSearch);
-      
       const matchCategory = selectedCategory === '' || t.category_id === selectedCategory;
       const matchType = selectedType === 'all' || t.type === selectedType;
-      
       let matchDate = true;
       if (startDate) matchDate = new Date(t.date) >= new Date(startDate);
       if (matchDate && endDate) matchDate = new Date(t.date) <= new Date(endDate);
-
       return matchSearch && matchCategory && matchType && matchDate;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, searchTerm, selectedCategory, selectedType, startDate, endDate]);
@@ -139,6 +138,19 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
     return { income, expense, balance: income - expense };
   }, [filteredTransactions]);
 
+  // Group transactions by date
+  const groupedTransactions = useMemo(() => {
+    const groups: Record<string, Transaction[]> = {};
+    filteredTransactions.forEach(t => {
+      const dateKey = new Date(t.date).toLocaleDateString('pt-BR', { 
+        day: 'numeric', month: 'long', year: 'numeric' 
+      });
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(t);
+    });
+    return groups;
+  }, [filteredTransactions]);
+
   const handleClearFilters = () => {
     setSearchInput('');
     setSelectedCategory('');
@@ -147,521 +159,265 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
     setEndDate('');
   };
 
+  const hasActiveFilters = searchInput || selectedCategory || selectedType !== 'all' || startDate || endDate;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      
-      {/* Header */}
-      <div>
-        <h1 style={{ fontSize: '2.1rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.03em' }}>
-          Extrato & Lançamentos
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-          Visualize, filtre, audite e gerencie todas as receitas e despesas registradas
-        </p>
+    <>
+      {/* Summary bar */}
+      {filteredTransactions.length > 0 && (
+        <div style={{
+          display: 'flex', gap: '0.75rem', padding: '0.75rem 1rem',
+          background: 'var(--bg-card-solid)', borderRadius: 'var(--radius-md)',
+          border: '0.5px solid var(--border-color)',
+        }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Entradas</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#30d158' }}>
+              {formatCurrency(totals.income)}
+            </div>
+          </div>
+          <div style={{ width: 1, background: 'var(--separator)' }} />
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Saídas</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ff453a' }}>
+              {formatCurrency(totals.expense)}
+            </div>
+          </div>
+          <div style={{ width: 1, background: 'var(--separator)' }} />
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Saldo</div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: totals.balance >= 0 ? '#30d158' : '#ff453a' }}>
+              {formatCurrency(totals.balance)}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search bar */}
+      <div className="ios-search-bar">
+        <Search size={16} />
+        <input
+          type="text"
+          placeholder="Buscar transações..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        {searchInput && (
+          <button
+            onClick={() => setSearchInput('')}
+            style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: 0 }}
+          >
+            <X size={16} />
+          </button>
+        )}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          style={{
+            background: hasActiveFilters ? 'var(--color-primary)' : 'none',
+            border: 'none',
+            color: hasActiveFilters ? '#000' : 'var(--text-tertiary)',
+            cursor: 'pointer',
+            padding: '4px',
+            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Filter size={16} />
+        </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', fontSize: '0.95rem', fontWeight: '700' }}>
-          <Filter size={18} color="var(--color-primary)" />
-          Filtragem Avançada
-        </div>
-        
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
-          gap: '1rem'
-        }} className="filters-grid">
-          {/* Text Search */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={18} style={{ position: 'absolute', left: '0.85rem', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              className="form-input"
-              style={{ width: '100%', paddingLeft: '2.3rem' }}
-              placeholder="Pesquisar por texto..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
+      {/* Expandable filters */}
+      {showFilters && (
+        <div className="ios-card animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.85rem' }}>
+          {/* Type filter pills */}
+          <div className="ios-segment">
+            <button
+              className={`ios-segment-btn ${selectedType === 'all' ? 'active' : ''}`}
+              onClick={() => setSelectedType('all')}
+            >
+              Todos
+            </button>
+            <button
+              className={`ios-segment-btn ${selectedType === 'income' ? 'active' : ''}`}
+              onClick={() => setSelectedType('income')}
+            >
+              Entradas
+            </button>
+            <button
+              className={`ios-segment-btn ${selectedType === 'expense' ? 'active' : ''}`}
+              onClick={() => setSelectedType('expense')}
+            >
+              Saídas
+            </button>
           </div>
 
-          {/* Type Filter */}
-          <select 
-            className="form-select"
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value as 'income' | 'expense' | 'all')}
-          >
-            <option value="all">Todos os tipos</option>
-            <option value="income">Entradas (Receitas)</option>
-            <option value="expense">Saídas (Despesas)</option>
-          </select>
-
-          {/* Category Filter */}
-          <select 
-            className="form-select"
+          {/* Category filter */}
+          <select
+            className="ios-select"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
           >
             <option value="">Todas as categorias</option>
             {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name} ({cat.type === 'income' ? 'Entrada' : 'Saída'})
-              </option>
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
 
-          {/* Start Date */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <span style={{ position: 'absolute', left: '0.85rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>De</span>
-            <input
-              type="date"
-              className="form-input"
-              style={{ width: '100%', paddingLeft: '2.2rem' }}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+          {/* Date range */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input type="date" className="ios-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ flex: 1, fontSize: '0.85rem' }} />
+            <input type="date" className="ios-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ flex: 1, fontSize: '0.85rem' }} />
           </div>
 
-          {/* End Date */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <span style={{ position: 'absolute', left: '0.85rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>Até</span>
-            <input
-              type="date"
-              className="form-input"
-              style={{ width: '100%', paddingLeft: '2.2rem' }}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {(searchInput || selectedCategory || selectedType !== 'all' || startDate || endDate) && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
-            <button 
-              onClick={handleClearFilters}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--color-expense)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                fontWeight: '700'
-              }}
-            >
-              <X size={14} /> Limpar Filtros Aplicados
+          {hasActiveFilters && (
+            <button onClick={handleClearFilters} style={{
+              background: 'none', border: 'none', color: '#ff453a', fontSize: '0.82rem',
+              fontWeight: 600, cursor: 'pointer', textAlign: 'center', padding: '0.25rem',
+            }}>
+              Limpar Filtros
             </button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* Spreadsheet / Table */}
-      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-        {filteredTransactions.length === 0 ? (
-          <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Nenhuma transação localizada com os parâmetros selecionados.
+      {/* Transaction list */}
+      {filteredTransactions.length === 0 ? (
+        <div className="ios-empty">
+          <div className="ios-empty-icon">
+            <Search size={28} />
           </div>
-        ) : (
-          <div className="table-container">
-            <table className="modern-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '110px' }}>Data</th>
-                  <th style={{ width: '70px' }}>Horário</th>
-                  <th>Descrição</th>
-                  <th>Categoria</th>
-                  <th>Subcategoria</th>
-                  <th>Tipo</th>
-                  <th style={{ textAlign: 'right' }}>Valor</th>
-                  <th>Membro</th>
-                  <th style={{ textAlign: 'center', width: '80px' }}>Recibo</th>
-                  <th style={{ textAlign: 'center', width: '80px' }}>Itens</th>
-                  <th style={{ textAlign: 'center', width: '80px' }}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.map((t) => (
-                  <tr key={t.id} onClick={() => setSelectedTransaction(t)}
-                    style={{ cursor: 'pointer' }}>
-                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                      {new Date(t.date).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                      {t.time || <span style={{ color: 'var(--text-muted)' }}>-</span>}
-                    </td>
-                    <td style={{ fontWeight: '700', color: '#ffffff' }}>
+          <h3 className="ios-empty-title">Nenhuma transação</h3>
+          <p className="ios-empty-desc">
+            Nenhum lançamento encontrado com os filtros selecionados.
+          </p>
+        </div>
+      ) : (
+        Object.entries(groupedTransactions).map(([dateLabel, txs]) => (
+          <div key={dateLabel}>
+            <div className="ios-section-header">
+              <span className="ios-section-title" style={{ textTransform: 'none' }}>{dateLabel}</span>
+            </div>
+            <div className="ios-grouped-list stagger">
+              {txs.map((t) => (
+                <div
+                  key={t.id}
+                  className="ios-list-item"
+                  onClick={() => setSelectedTransaction(t)}
+                >
+                  <div className="ios-list-item-icon" style={{
+                    background: t.type === 'income' ? 'var(--color-income-bg)' : 'var(--color-expense-bg)',
+                    color: t.type === 'income' ? '#30d158' : '#ff453a',
+                    borderRadius: 'var(--radius-sm)',
+                  }}>
+                    {t.type === 'income' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+                  </div>
+                  <div className="ios-list-item-content" style={{ minWidth: 0 }}>
+                    <div className="ios-list-item-title" style={{ fontSize: '0.95rem' }}>
                       {t.description}
-                    </td>
-                    <td>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        fontSize: '0.85rem',
-                        fontWeight: '600',
-                        color: t.categories?.color || '#ffffff'
-                      }}>
-                        <span style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: t.categories?.color || '#9E9E9E',
-                          boxShadow: `0 0 8px ${t.categories?.color || '#9e9e9e'}`
-                        }} />
-                        {t.categories?.name}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                      {t.subcategories?.name || <span style={{ color: 'var(--text-muted)' }}>-</span>}
-                    </td>
-                    <td>
-                      <span className={`badge ${t.type === 'income' ? 'badge-income' : 'badge-expense'}`}>
-                        {t.type === 'income' ? 'Entrada' : 'Saída'}
-                      </span>
-                    </td>
-                    <td style={{
-                      textAlign: 'right',
-                      fontWeight: '800',
+                    </div>
+                    <div className="ios-list-item-subtitle" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>{t.time || new Date(t.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      {t.categories?.name && (
+                        <>
+                          <span>·</span>
+                          <span style={{ color: t.categories?.color || 'var(--text-secondary)' }}>{t.categories.name}</span>
+                        </>
+                      )}
+                      {t.attachment_url && (
+                        <ImageIcon size={11} color="#30d158" style={{ marginLeft: 2 }} />
+                      )}
+                      {t.receipt_items && t.receipt_items.length > 0 && (
+                        <FileText size={11} color="#007aff" style={{ marginLeft: 2 }} />
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
+                    <span style={{
+                      fontFamily: 'var(--font-title)',
                       fontSize: '0.95rem',
-                      color: t.type === 'income' ? 'var(--color-income)' : 'var(--color-expense)'
+                      fontWeight: 700,
+                      color: t.type === 'income' ? '#30d158' : 'var(--text-primary)',
                     }}>
                       {t.type === 'income' ? '+' : '-'} {formatCurrency(Number(t.amount))}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                          color: 'var(--text-secondary)',
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '1px solid var(--border-color)'
-                        }}>
-                          {(t.profiles?.display_name || 'U').substring(0, 2).toUpperCase()}
-                        </span>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                          {t.profiles?.display_name ? t.profiles.display_name.split(' ')[0] : 'Membro'}
-                        </span>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {t.attachment_url ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openViewer(t.attachment_url); }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--color-primary)',
-                            cursor: 'pointer',
-                            padding: '0.35rem',
-                            borderRadius: '50%',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: 'rgba(16, 185, 129, 0.04)',
-                            transition: 'all var(--transition-fast)'
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-primary-glow)'; e.currentTarget.style.color = 'var(--color-primary-hover)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.04)'; e.currentTarget.style.color = 'var(--color-primary)'; }}
-                        >
-                          <ImageIcon size={16} />
-                        </button>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>-</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {t.receipt_items && t.receipt_items.length > 0 ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setViewerReceiptItems({ transaction: t, items: t.receipt_items || [] }); }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--color-primary)',
-                            cursor: 'pointer',
-                            padding: '0.35rem 0.6rem',
-                            borderRadius: '8px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            fontSize: '0.8rem',
-                            fontWeight: 700,
-                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                            transition: 'all var(--transition-fast)'
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-primary-glow)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.08)'; }}
-                        >
-                          <FileText size={14} />
-                          {t.receipt_items.length}
-                        </button>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>-</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`Excluir permanentemente o lançamento "${t.description}"?`)) {
-                            onDeleteTransaction(t.id);
-                          }
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--color-expense)',
-                          cursor: 'pointer',
-                          padding: '0.35rem',
-                          borderRadius: '50%',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: 'rgba(244, 63, 94, 0.04)',
-                          transition: 'all var(--transition-fast)'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-expense-bg)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(244, 63, 94, 0.04)'}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Spreadsheet totals summary card */}
-      {filteredTransactions.length > 0 && (
-        <div className="glass-card" style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '1.5rem 2.5rem',
-          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.6) 0%, rgba(10, 15, 30, 0.8) 100%)',
-          flexWrap: 'wrap',
-          gap: '1.5rem'
-        }}>
-          <div style={{ display: 'flex', gap: '3rem', flexWrap: 'wrap' }}>
-            <div>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Entradas Filtradas</span>
-              <p style={{ color: 'var(--color-income)', fontWeight: '800', fontSize: '1.25rem', marginTop: '0.15rem' }}>
-                {formatCurrency(totals.income)}
-              </p>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Saídas Filtradas</span>
-              <p style={{ color: 'var(--color-expense)', fontWeight: '800', fontSize: '1.25rem', marginTop: '0.15rem' }}>
-                {formatCurrency(totals.expense)}
-              </p>
+                    </span>
+                    {t.profiles?.display_name && (
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-quaternary)' }}>
+                        {t.profiles.display_name.split(' ')[0]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Saldo do Período</span>
-            <p style={{
-              color: totals.balance >= 0 ? 'var(--color-primary)' : 'var(--color-expense)',
-              fontWeight: '900',
-              fontSize: '1.5rem',
-              fontFamily: 'var(--font-title)',
-              marginTop: '0.15rem',
-              textShadow: totals.balance >= 0 ? '0 0 10px rgba(16,185,129,0.2)' : 'none'
-            }}>
-              {formatCurrency(totals.balance)}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Receipt Items Detail Modal */}
-      {viewerReceiptItems && (
-        <div className="modal-overlay" onClick={() => setViewerReceiptItems(null)}>
-          <div className="glass-card" style={{
-            position: 'relative',
-            maxWidth: '520px',
-            width: '100%',
-            padding: '1.5rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            boxShadow: 'var(--shadow-lg), 0 0 60px rgba(0,0,0,0.6)'
-          }} onClick={(e) => e.stopPropagation()}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-              <div>
-                <h4 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
-                  Itens da Nota Fiscal
-                </h4>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '0.25rem 0 0 0' }}>
-                  {viewerReceiptItems.transaction.description} &middot; {new Date(viewerReceiptItems.transaction.date).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-              <button 
-                className="modal-close" 
-                onClick={() => setViewerReceiptItems(null)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ textAlign: 'left', padding: '0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Item</th>
-                    <th style={{ textAlign: 'center', padding: '0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Qtd</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Preço Unit.</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewerReceiptItems.items.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ padding: '0.6rem 0', color: '#fff', fontSize: '0.88rem', fontWeight: 500 }}>
-                        {item.item_name}
-                      </td>
-                      <td style={{ padding: '0.6rem 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        {item.quantity}
-                      </td>
-                      <td style={{ padding: '0.6rem 0', textAlign: 'right', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        {formatCurrency(Number(item.unit_price))}
-                      </td>
-                      <td style={{ padding: '0.6rem 0', textAlign: 'right', color: 'var(--color-expense)', fontWeight: 700, fontSize: '0.88rem' }}>
-                        {formatCurrency(Number(item.total_price))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              borderTop: '1px solid var(--border-color)', 
-              paddingTop: '0.75rem',
-              marginTop: '0.25rem'
-            }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                Total ({viewerReceiptItems.items.length} {viewerReceiptItems.items.length === 1 ? 'item' : 'itens'})
-              </span>
-              <span style={{ fontSize: '1.15rem', color: 'var(--color-primary)', fontWeight: 800 }}>
-                {formatCurrency(viewerReceiptItems.items.reduce((sum, i) => sum + Number(i.total_price), 0))}
-              </span>
-            </div>
-
-            <button 
-              className="btn-secondary" 
-              style={{ width: '100%', padding: '0.65rem' }}
-              onClick={() => setViewerReceiptItems(null)}
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Image Viewer Lightbox */}
-      {(viewerImage || viewerLoading) && (
-        <div className="modal-overlay" onClick={() => setViewerImage(null)}>
-          <div className="glass-card" style={{
-            position: 'relative',
-            maxWidth: '560px',
-            width: '100%',
-            padding: '1.5rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.25rem',
-            alignItems: 'center',
-            boxShadow: 'var(--shadow-lg), 0 0 60px rgba(0,0,0,0.6)'
-          }} onClick={(e) => e.stopPropagation()}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-              <h4 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 700 }}>
-                Comprovante Anexado
-              </h4>
-              <button 
-                className="modal-close" 
-                onClick={() => setViewerImage(null)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {viewerLoading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '2rem 0', color: 'var(--text-secondary)' }}>
-                <Loader2 size={18} className="spinner" /> Carregando comprovante...
-              </div>
-            ) : viewerImage && (
-              <img 
-                src={viewerImage} 
-                alt="Comprovante Financeiro" 
-                style={{
-                  width: '100%',
-                  maxHeight: '60vh',
-                  borderRadius: 'var(--radius-md)',
-                  objectFit: 'contain',
-                  backgroundColor: 'rgba(0,0,0,0.2)',
-                  border: '1px solid var(--border-color)'
-                }} 
-              />
-            )}
-
-            {!viewerLoading && viewerImage && (
-              <div style={{ display: 'flex', gap: '0.5rem', width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-                <a 
-                  href={viewerImage} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="btn-primary"
-                  style={{ flex: 1, textDecoration: 'none', padding: '0.65rem' }}
-                >
-                  <FileText size={16} /> Abrir Link Direto
-                </a>
-                <button 
-                  className="btn-secondary" 
-                  style={{ flex: 1, padding: '0.65rem' }}
-                  onClick={() => setViewerImage(null)}
-              >
-                Fechar Recibo
-              </button>
-            </div>
-            )}
-          </div>
-        </div>
+        ))
       )}
 
       {/* Transaction Detail Modal */}
       {selectedTransaction && (
         <TransactionDetailModal
           transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+          onDelete={onDeleteTransaction}
+          onUpdate={onUpdateTransaction}
           categories={categories}
           familyId={familyId}
           userId={userId}
-          onClose={() => setSelectedTransaction(null)}
-          onUpdate={onUpdateTransaction}
-          onDelete={onDeleteTransaction}
         />
       )}
 
-      {/* Responsive Table Styles */}
-      <style>{`
-        @media (max-width: 768px) {
-          .filters-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
-    </div>
+      {/* Receipt Items Detail Modal */}
+      {viewerReceiptItems && (
+        <div className="ios-sheet-overlay open" onClick={() => setViewerReceiptItems(null)}>
+          <div className="ios-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="ios-sheet-handle">
+              <div className="ios-sheet-handle-bar" />
+            </div>
+            <div className="ios-sheet-header">
+              <h3 className="ios-sheet-title">Itens da Nota</h3>
+              <button className="ios-sheet-close" onClick={() => setViewerReceiptItems(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="ios-sheet-body">
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                {viewerReceiptItems.transaction.description} · {new Date(viewerReceiptItems.transaction.date).toLocaleDateString('pt-BR')}
+              </p>
+              <div className="ios-grouped-list">
+                {viewerReceiptItems.items.map((item) => (
+                  <div key={item.id} className="ios-list-item" style={{ cursor: 'default' }}>
+                    <div className="ios-list-item-content">
+                      <div className="ios-list-item-title" style={{ fontSize: '0.88rem' }}>{item.item_name}</div>
+                      <div className="ios-list-item-subtitle">
+                        {item.quantity}x {formatCurrency(Number(item.unit_price))}
+                      </div>
+                    </div>
+                    <span className="ios-list-item-value" style={{ color: '#ff453a' }}>
+                      {formatCurrency(Number(item.total_price))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Viewer */}
+      {viewerImage && (
+        <div className="ios-sheet-overlay open" onClick={() => setViewerImage(null)} style={{ alignItems: 'center' }}>
+          <div className="ios-sheet" style={{ maxWidth: '90vw', maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
+            <div className="ios-sheet-handle">
+              <div className="ios-sheet-handle-bar" />
+            </div>
+            <div style={{ padding: '1rem', textAlign: 'center' }}>
+              <img src={viewerImage} alt="Comprovante" style={{ maxWidth: '100%', borderRadius: 'var(--radius-md)' }} />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

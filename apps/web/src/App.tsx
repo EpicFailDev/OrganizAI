@@ -2,6 +2,8 @@ import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { supabase, cachedQuery } from './supabaseClient';
 import { ProfileSelector } from './components/ProfileSelector';
 import { Sidebar } from './components/Sidebar';
+import { MobileTabBar } from './components/MobileTabBar';
+import { MobileHeader } from './components/MobileHeader';
 import { Loader2, Users, Menu } from 'lucide-react';
 
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -60,14 +62,8 @@ interface ReceiptItem {
 
 function LoadingSkeleton() {
   return (
-    <div className="loading-skeleton">
-      <div className="skeleton-card" />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-        <div className="skeleton-card" />
-        <div className="skeleton-card" />
-      </div>
-      <div className="skeleton-row" />
-      <div className="skeleton-row" />
+    <div className="ios-loading">
+      <div className="ios-spinner" />
     </div>
   );
 }
@@ -264,25 +260,48 @@ function App() {
     else setView(newView);
   }, []);
 
+  // Determine mobile header title
+  const getHeaderTitle = () => {
+    switch (view) {
+      case 'dashboard': return 'OrganizAI';
+      case 'transactions': return 'Extrato';
+      case 'transactions-entradas': return 'Entradas';
+      case 'transactions-saidas': return 'Saídas';
+      case 'transactions-salgados': return 'Salgados';
+      case 'transactions-uber99': return 'Uber / 99';
+      case 'categories': return 'Configurações';
+      case 'family': return 'Família';
+      case 'orcamentos': return 'Orçamentos';
+      case 'metas': return 'Metas';
+      case 'planejamento': return 'Planejamento';
+      case 'relatorios': return 'Relatórios';
+      case 'calendario': return 'Calendário';
+      default: return 'OrganizAI';
+    }
+  };
+
+  const getHeaderSubtitle = () => {
+    if (view === 'dashboard') return familyName || 'Controle financeiro familiar';
+    if (view === 'transactions' || view.startsWith('transactions-')) return familyName;
+    return undefined;
+  };
+
   const renderView = () => {
     if (!familyId && view !== 'family') {
       return (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', flex: 1, textAlign: 'center', gap: '1.5rem',
-          padding: '2rem', maxWidth: '600px', margin: 'auto'
-        }} className="glass-card">
-          <Users size={48} style={{ color: 'var(--color-primary)' }} />
-          <div>
-            <h2 style={{ fontSize: '1.85rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>
-              Conecte seu amor!
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', fontSize: '0.95rem' }}>
-              Para lançar suas receitas, despesas e compartilhar o saldo com sua esposa,
-              você precisa primeiro criar um Grupo Familiar ou participar de um existente.
-            </p>
+        <div className="ios-empty">
+          <div className="ios-empty-icon">
+            <Users size={28} />
           </div>
-          <button className="btn-primary" onClick={() => setView('family')} style={{ padding: '0.85rem 2rem' }}>
+          <h3 className="ios-empty-title">Conecte seu amor!</h3>
+          <p className="ios-empty-desc">
+            Para lançar suas receitas e despesas, você precisa criar um Grupo Familiar ou participar de um existente.
+          </p>
+          <button
+            className="ios-btn ios-btn-primary"
+            style={{ maxWidth: '280px', marginTop: '0.5rem' }}
+            onClick={() => handleViewChange('family')}
+          >
             Configurar Grupo Familiar
           </button>
         </div>
@@ -291,80 +310,75 @@ function App() {
 
     return (
       <Suspense fallback={<LoadingSkeleton />}>
-        <div className="router-view">
-          {view === 'dashboard' && (
-            <Dashboard
-              transactions={transactions}
-              profileName={profile?.display_name}
-              familyMembers={familyMembers}
-              onNavigate={handleViewChange}
-            />
-          )}
-          {view === 'transactions-uber99' && (
-            <Uber99Dashboard transactions={transactions} />
-          )}
-          {view.startsWith('transactions') && view !== 'transactions-uber99' && (
-            <TransactionsList
-              key={view}
-              transactions={transactions}
-              categories={categories}
-              onDeleteTransaction={handleDeleteTransaction}
-              onUpdateTransaction={handleUpdateTransaction}
-              familyId={familyId || ''}
-              userId={session.user.id}
-              presetType={
-                view === 'transactions-entradas' ? 'income' :
-                view === 'transactions-saidas' ? 'expense' : 'all'
-              }
-              presetSearch={view === 'transactions-salgados' ? 'Salgados' : ''}
-            />
-          )}
-          {view === 'categories' && (
-            <CategoryManager
-              categories={categories}
-              familyId={familyId || ''}
-              onRefreshCategories={handleRefreshCategories}
-            />
-          )}
-          {view === 'family' && (
-            <FamilySettings
-              familyId={familyId}
-              familyName={familyName}
-              userId={session.user.id}
-              onRefreshFamily={handleRefreshFamily}
-            />
-          )}
-          {view === 'orcamentos' && (
-            <Orcamentos familyId={familyId || ''} categories={categories} transactions={transactions} />
-          )}
-          {view === 'metas' && <Metas familyId={familyId || ''} />}
-          {view === 'planejamento' && (
-            <Planejamento familyId={familyId || ''} categories={categories} userId={session.user.id} />
-          )}
-          {view === 'relatorios' && (
-            <Relatorios transactions={transactions} categories={categories} />
-          )}
-          {view === 'calendario' && (
-            <Calendario
-              transactions={transactions}
-              categories={categories}
-              familyId={familyId || ''}
-              userId={session.user.id}
-              onRefresh={fetchFinancialData}
-            />
-          )}
-        </div>
+        {view === 'dashboard' && (
+          <Dashboard
+            transactions={transactions}
+            profileName={profile?.display_name}
+            familyMembers={familyMembers}
+            onNavigate={handleViewChange}
+          />
+        )}
+        {view === 'transactions-uber99' && (
+          <Uber99Dashboard transactions={transactions} />
+        )}
+        {view.startsWith('transactions') && view !== 'transactions-uber99' && (
+          <TransactionsList
+            key={view}
+            transactions={transactions}
+            categories={categories}
+            onDeleteTransaction={handleDeleteTransaction}
+            onUpdateTransaction={handleUpdateTransaction}
+            familyId={familyId || ''}
+            userId={session.user.id}
+            presetType={
+              view === 'transactions-entradas' ? 'income' :
+              view === 'transactions-saidas' ? 'expense' : 'all'
+            }
+            presetSearch={view === 'transactions-salgados' ? 'Salgados' : ''}
+          />
+        )}
+        {view === 'categories' && (
+          <CategoryManager
+            categories={categories}
+            familyId={familyId || ''}
+            onRefreshCategories={handleRefreshCategories}
+          />
+        )}
+        {view === 'family' && (
+          <FamilySettings
+            familyId={familyId}
+            familyName={familyName}
+            userId={session.user.id}
+            onRefreshFamily={handleRefreshFamily}
+          />
+        )}
+        {view === 'orcamentos' && (
+          <Orcamentos familyId={familyId || ''} categories={categories} transactions={transactions} />
+        )}
+        {view === 'metas' && <Metas familyId={familyId || ''} />}
+        {view === 'planejamento' && (
+          <Planejamento familyId={familyId || ''} categories={categories} userId={session.user.id} />
+        )}
+        {view === 'relatorios' && (
+          <Relatorios transactions={transactions} categories={categories} />
+        )}
+        {view === 'calendario' && (
+          <Calendario
+            transactions={transactions}
+            categories={categories}
+            familyId={familyId || ''}
+            userId={session.user.id}
+            onRefresh={fetchFinancialData}
+          />
+        )}
       </Suspense>
     );
   };
 
   if (!authChecked) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        minHeight: '100vh', backgroundColor: '#07090e', color: '#fff'
-      }}>
-        <Loader2 size={36} className="spinner" style={{ color: 'var(--color-primary)' }} />
+      <div className="ios-app" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <div className="ios-spinner" />
       </div>
     );
   }
@@ -374,15 +388,15 @@ function App() {
   }
 
   return (
-    <div className="app-container">
-      <button
-        className="mobile-nav-toggle"
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        aria-label="Abrir menu"
-      >
-        <Menu size={24} />
-      </button>
+    <div className="ios-app">
+      {/* Mobile Header (visible on mobile only via CSS) */}
+      <MobileHeader
+        title={getHeaderTitle()}
+        subtitle={getHeaderSubtitle()}
+        onSettingsClick={() => handleViewChange('categories')}
+      />
 
+      {/* Desktop Sidebar (hidden on mobile via CSS) */}
       <Sidebar
         currentView={view}
         setView={handleViewChange}
@@ -392,21 +406,36 @@ function App() {
         setIsOpen={setIsSidebarOpen}
       />
 
-      <main className="main-content">
-        {loadingData && (
-          <div style={{
-            position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 1000,
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-            backgroundColor: 'rgba(10, 15, 30, 0.85)', border: '1px solid var(--border-color)',
-            padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem',
-            color: 'var(--text-secondary)'
-          }}>
-            <Loader2 size={14} className="spinner" style={{ color: 'var(--color-primary)' }} /> Atualizando...
-          </div>
-        )}
-        {renderView()}
+      {/* Loading indicator */}
+      {loadingData && (
+        <div style={{
+          position: 'fixed', top: 'calc(var(--safe-top, 0px) + 0.75rem)', right: '1rem', zIndex: 500,
+          display: 'flex', alignItems: 'center', gap: '0.4rem',
+          background: 'rgba(28, 28, 30, 0.9)', backdropFilter: 'blur(12px)',
+          padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-full)',
+          fontSize: '0.72rem', color: 'var(--text-secondary)',
+          border: '0.5px solid var(--separator)',
+        }}>
+          <div className="ios-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+          Atualizando...
+        </div>
+      )}
+
+      {/* Main scrollable content */}
+      <main className="ios-content">
+        <div className="ios-content-inner stagger">
+          {renderView()}
+        </div>
       </main>
 
+      {/* iOS Bottom Tab Bar */}
+      <MobileTabBar
+        currentView={view}
+        setView={handleViewChange}
+        onAddTransactionClick={() => setIsAddOpen(true)}
+      />
+
+      {/* Add Transaction Modal (iOS Sheet style) */}
       {session.user && familyId && (
         <Suspense fallback={null}>
           <AddTransactionModal
