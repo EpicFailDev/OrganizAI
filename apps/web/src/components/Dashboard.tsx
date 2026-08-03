@@ -98,6 +98,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return { income, expense, balance: income - expense };
   }, [currentMonthTransactions]);
 
+  // Saldo TOTAL acumulado (todas as transações, não apenas o mês atual)
+  const totalBalance = useMemo(() => {
+    return transactions.reduce((acc, t) => {
+      const amount = Number(t.amount);
+      return t.type === 'income' ? acc + amount : acc - amount;
+    }, 0);
+  }, [transactions]);
+
   const cashFlowData = useMemo(() => {
     const data = [
       { name: 'Sem 1', Receita: 0, Despesa: 0 },
@@ -134,15 +142,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       }
     });
     const data = Object.values(expenseMap).sort((a, b) => b.value - a.value);
-    if (data.length === 0) {
-      return [
-        { name: 'Transporte', value: 1327, color: '#5856d6' },
-        { name: 'Alimentação', value: 1031, color: '#34c759' },
-        { name: 'Casa', value: 853, color: '#007aff' },
-        { name: 'Saúde', value: 426, color: '#ff9500' },
-        { name: 'Outros', value: 341, color: '#af52de' },
-      ];
-    }
     return data.slice(0, 5);
   }, [currentMonthTransactions]);
 
@@ -155,13 +154,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const list = [...currentMonthTransactions]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
-    if (list.length === 0) {
-      return [
-        { id: '1', description: '99 Pop - Corrida', date: 'Hoje', type: 'income' as const, amount: 28.40, color: '#30d158' },
-        { id: '2', description: 'Venda Salgados', date: 'Hoje', type: 'income' as const, amount: 150.00, color: '#ff9500' },
-        { id: '3', description: 'Combustível', date: 'Ontem', type: 'expense' as const, amount: 120.00, color: '#ff453a' },
-      ];
-    }
     return list.map(t => ({
       id: t.id,
       description: t.description,
@@ -208,11 +200,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Wallet size={16} color="#30d158" />
           </div>
         </div>
-        <div className="ios-kpi-value" style={{ color: '#30d158' }}>
-          {formatCurrency(stats.balance)}
+        <div className="ios-kpi-value" style={{ color: totalBalance >= 0 ? '#30d158' : '#ff453a' }}>
+          {formatCurrency(totalBalance)}
         </div>
-        <div className="ios-kpi-trend up">
-          <TrendingUp size={11} /> +12% vs mês anterior
+        <div className="ios-kpi-trend up" style={{ color: 'var(--text-secondary)' }}>
+          Acumulado de todas as transações
         </div>
       </div>
 
@@ -226,8 +218,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="ios-kpi-value" style={{ color: '#30d158', fontSize: '1.25rem' }}>
             {formatCurrency(stats.income)}
           </div>
-          <div className="ios-kpi-trend up">
-            <TrendingUp size={11} /> +8%
+          <div className="ios-kpi-trend up" style={{ color: 'var(--text-tertiary)' }}>
+            Este mês
           </div>
         </div>
 
@@ -239,8 +231,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="ios-kpi-value" style={{ color: '#ff453a', fontSize: '1.25rem' }}>
             {formatCurrency(stats.expense)}
           </div>
-          <div className="ios-kpi-trend down">
-            <TrendingDown size={11} /> +5%
+          <div className="ios-kpi-trend down" style={{ color: 'var(--text-tertiary)' }}>
+            Este mês
           </div>
         </div>
       </div>
@@ -308,6 +300,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
             Ver mais
           </button>
         </div>
+        {donutChartData.length === 0 ? (
+          <div style={{ padding: '1.5rem 1rem 2rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              Nenhuma despesa registrada este mês
+            </p>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>
+              Toque no + para adicionar uma transação
+            </p>
+          </div>
+        ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0 1rem 1rem' }}>
           <div style={{ width: 120, height: 120, position: 'relative', flexShrink: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -350,6 +352,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             })}
           </div>
         </div>
+        )}
       </div>
 
       {/* Budget progress */}
@@ -392,7 +395,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       <div className="ios-grouped-list stagger">
-        {recentList.map((t) => (
+        {recentList.length === 0 ? (
+          <div style={{ padding: '1.75rem 1rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              Nenhuma transação este mês
+            </p>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>
+              Suas transações de meses anteriores estão em “Ver todas”.
+            </p>
+          </div>
+        ) : recentList.map((t) => (
           <div
             key={t.id}
             className="ios-list-item"
