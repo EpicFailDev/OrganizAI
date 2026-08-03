@@ -971,6 +971,83 @@ body {
 .stagger > *:nth-child(7) { animation-delay: 0.35s; }
 .stagger > *:nth-child(8) { animation-delay: 0.4s; }
 
+/* ===== ONBOARDING ANIMATIONS ===== */
+@keyframes onboardingSlideIn {
+  from { opacity: 0; transform: translateX(40px) scale(0.96); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes onboardingSlideInReverse {
+  from { opacity: 0; transform: translateX(-40px) scale(0.96); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes onboardingFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== SWIPE-TO-ACTION GESTURES ===== */
+.swipe-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+
+.swipe-actions {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  z-index: 0;
+}
+
+.swipe-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 75px;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  flex-direction: column;
+  gap: 4px;
+  border: none;
+  cursor: pointer;
+}
+
+.swipe-action-edit {
+  background: #0a84ff;
+}
+
+.swipe-action-delete {
+  background: #ff453a;
+}
+
+.swipe-content {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-card-solid);
+  transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+.swipe-content.swiping {
+  transition: none;
+}
+
+.swipe-content.snap-back {
+  transition: transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.swipe-content.swipe-left {
+  transition: transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+
 /* ===== RESPONSIVE - TABLET/DESKTOP ===== */
 @media (min-width: 768px) {
   .ios-content-inner {

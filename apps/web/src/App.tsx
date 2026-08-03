@@ -5,6 +5,8 @@ import { Sidebar } from './components/Sidebar';
 import { MobileTabBar } from './components/MobileTabBar';
 import { MobileHeader } from './components/MobileHeader';
 import { Loader2, Users, Menu } from 'lucide-react';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { Onboarding, isOnboardingComplete } from './components/Onboarding';
 
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const TransactionsList = lazy(() => import('./components/TransactionsList').then(m => ({ default: m.TransactionsList })));
@@ -83,11 +85,17 @@ function App() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+        setSession(session);
       setAuthChecked(true);
+
+      // Show onboarding only for authenticated first-time users
+      if (!isOnboardingComplete()) {
+        setShowOnboarding(true);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -447,6 +455,13 @@ function App() {
             onSuccess={fetchFinancialData}
           />
         </Suspense>
+      )}
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
+
+      {/* Onboarding */}
+      {showOnboarding && (
+        <Onboarding onComplete={() => setShowOnboarding(false)} />
       )}
     </div>
   );

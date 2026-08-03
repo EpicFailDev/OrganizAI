@@ -3,11 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Controle financeiro familiar compartilhado. Gerencie receitas, despesas, metas e orçamentos com sua família." />
+    
+    <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-title" content="OrganizAI" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    
+    <!-- Android/Chrome PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="OrganizAI" />
+    <meta property="og:description" content="Controle financeiro familiar compartilhado" />
+    <meta property="og:type" content="website" />
+    
     <title>OrganizAI</title>
     <style>
       /* Prevent overscroll bounce on iOS */
@@ -15,6 +32,52 @@
         overscroll-behavior: none;
         -webkit-overflow-scrolling: touch;
         background: #000;
+      }
+      /* PWA install prompt styling */
+      .pwa-install-banner {
+        position: fixed;
+        bottom: 90px;
+        left: 16px;
+        right: 16px;
+        z-index: 9999;
+        background: rgba(28, 28, 30, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 16px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        border: 0.5px solid rgba(255, 255, 255, 0.08);
+        transform: translateY(200px);
+        opacity: 0;
+        transition: all 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+      .pwa-install-banner.visible {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      .pwa-install-btn {
+        background: #30d158;
+        color: #000;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 18px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .pwa-install-dismiss {
+        background: none;
+        border: none;
+        color: rgba(235, 235, 245, 0.3);
+        font-size: 20px;
+        cursor: pointer;
+        padding: 4px;
+        flex-shrink: 0;
       }
     </style>
   </head>

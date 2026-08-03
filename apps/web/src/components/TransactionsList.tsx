@@ -13,6 +13,7 @@ import {
 import { formatCurrency } from '../utils';
 import { getSignedAttachmentUrl } from '../lib/storage';
 import { TransactionDetailModal } from './TransactionDetailModal';
+import { SwipeableRow } from './SwipeableRow';
 
 interface Transaction {
   id: string;
@@ -97,6 +98,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   const [viewerReceiptItems, setViewerReceiptItems] = useState<{ transaction: Transaction; items: ReceiptItem[] } | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Transaction | null>(null);
 
   const openViewer = async (value?: string) => {
     if (!value) return;
@@ -301,8 +303,12 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
             </div>
             <div className="ios-grouped-list stagger">
               {txs.map((t) => (
-                <div
+                <SwipeableRow
                   key={t.id}
+                  onEdit={() => setSelectedTransaction(t)}
+                  onDelete={() => setConfirmDelete(t)}
+                >
+                <div
                   className="ios-list-item"
                   onClick={() => setSelectedTransaction(t)}
                 >
@@ -349,6 +355,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                     )}
                   </div>
                 </div>
+                </SwipeableRow>
               ))}
             </div>
           </div>
@@ -366,6 +373,58 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
           familyId={familyId}
           userId={userId}
         />
+      )}
+
+      {/* Delete Confirmation */}
+      {confirmDelete && (
+        <div className="ios-sheet-overlay open" onClick={() => setConfirmDelete(null)}>
+          <div className="ios-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'auto' }}>
+            <div className="ios-sheet-handle"><div className="ios-sheet-handle-bar" /></div>
+            <div style={{ padding: '1.25rem 1.5rem 1.5rem', textAlign: 'center' }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'rgba(255, 69, 58, 0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 1rem',
+              }}>
+                <Trash2 size={22} color="#ff453a" />
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: '0.35rem' }}>
+                Excluir transação?
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.4 }}>
+                "{confirmDelete.description}" — Esta ação não pode ser desfeita.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  style={{
+                    flex: 1, padding: '0.75rem', borderRadius: 'var(--radius-xs)',
+                    border: 'none', background: 'rgba(255,255,255,0.08)',
+                    color: 'var(--text-primary)', fontFamily: 'var(--font-title)',
+                    fontWeight: 600, fontSize: '0.92rem', cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    await onDeleteTransaction(confirmDelete.id);
+                    setConfirmDelete(null);
+                  }}
+                  style={{
+                    flex: 1, padding: '0.75rem', borderRadius: 'var(--radius-xs)',
+                    border: 'none', background: '#ff453a',
+                    color: '#fff', fontFamily: 'var(--font-title)',
+                    fontWeight: 600, fontSize: '0.92rem', cursor: 'pointer',
+                  }}
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Receipt Items Detail Modal */}
