@@ -24,6 +24,7 @@ interface Profile {
   id: string;
   display_name: string;
   avatar_url?: string;
+  profession?: string;
 }
 
 interface Category {
@@ -111,7 +112,7 @@ function App() {
     try {
       const { data: profData, error: profError } = await cachedQuery<Profile>(
         `profile:${userId}`,
-        () => supabase.from('profiles').select('*').eq('id', userId).single(),
+        () => supabase.from('profiles').select('id, display_name, avatar_url, profession').eq('id', userId).single(),
         60000
       );
       if (profError) throw profError;
@@ -325,6 +326,7 @@ function App() {
             profileName={profile?.display_name}
             familyMembers={familyMembers}
             onNavigate={handleViewChange}
+            profession={profile?.profession}
           />
         )}
         {view === 'transactions-uber99' && (
@@ -413,6 +415,7 @@ function App() {
         onAddTransactionClick={() => setIsAddOpen(true)}
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
+        profession={profile?.profession}
       />
 
       {/* Loading indicator */}
@@ -442,6 +445,7 @@ function App() {
         currentView={view}
         setView={handleViewChange}
         onAddTransactionClick={() => setIsAddOpen(true)}
+        profession={profile?.profession}
       />
 
       {/* Add Transaction Modal (iOS Sheet style) */}

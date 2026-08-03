@@ -68,7 +68,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --tab-bar-height: 94px;
+  --tab-bar-height: 146px;
 }
 
 /* Reset */
@@ -304,8 +304,12 @@ body {
   stroke: rgba(235, 235, 245, 0.88);
 }
 
-/* Center FAB button in tab bar */
-.ios-tab-fab {
+/* Floating Action Button (bottom-right) */
+.ios-fab-floating {
+  position: fixed;
+  right: 16px;
+  bottom: calc(82px + var(--safe-bottom));
+  z-index: 210;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -316,9 +320,6 @@ body {
   color: #000;
   border: none;
   cursor: pointer;
-  margin-top: -26px;
-  flex-shrink: 0;
-  position: relative;
   box-shadow:
     0 0 0 4px rgba(0, 0, 0, 0.85),
     0 6px 24px rgba(29, 233, 130, 0.5),
@@ -326,30 +327,30 @@ body {
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow var(--transition-fast);
 }
 
-.ios-tab-fab::after {
+.ios-fab-floating::after {
   content: '';
   position: absolute;
   inset: -7px;
   border-radius: 50%;
-  border: 1.5px solid rgba(48, 209, 88, 0.35);
+  border: 1.5px solid rgba(29, 233, 130, 0.35);
   opacity: 0;
   transform: scale(0.8);
   transition: all var(--transition-normal);
 }
 
-.ios-tab-fab:hover::after {
+.ios-fab-floating:hover::after {
   opacity: 1;
   transform: scale(1);
 }
 
-.ios-tab-fab:active {
+.ios-fab-floating:active {
   transform: scale(0.88) rotate(90deg);
   box-shadow:
-    0 0 0 4px rgba(0, 0, 0, 0.9),
-    0 3px 10px rgba(48, 209, 88, 0.35);
+    0 0 0 4px rgba(0, 0, 0, 0.85),
+    0 3px 10px rgba(29, 233, 130, 0.35);
 }
 
-.ios-tab-fab svg {
+.ios-fab-floating svg {
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1127,6 +1128,10 @@ body {
 /* ===== DESKTOP: Keep sidebar layout ===== */
 @media (min-width: 1025px) {
   .ios-tab-bar {
+    display: none;
+  }
+
+  .ios-fab-floating {
     display: none;
   }
 

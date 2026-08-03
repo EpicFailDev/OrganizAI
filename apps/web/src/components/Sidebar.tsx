@@ -24,6 +24,7 @@ interface SidebarProps {
   onAddTransactionClick: () => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  profession?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -32,23 +33,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   onAddTransactionClick,
   isOpen,
-  setIsOpen
+  setIsOpen,
+  profession
 }) => {
-  const menuItems = [
-    { id: 'dashboard', name: 'Visão Geral', icon: <LayoutDashboard size={18} /> },
-    { id: 'transactions', name: 'Transações', icon: <Receipt size={18} /> },
-    { id: 'entradas', name: 'Entradas', icon: <ArrowUpRight size={18} /> },
-    { id: 'saidas', name: 'Saídas', icon: <ArrowDownRight size={18} /> },
-    { id: 'salgados', name: 'Salgados (Vendas)', icon: <Store size={18} /> },
-    { id: 'uber99', name: 'Uber / 99', icon: <Car size={18} /> },
-    { id: 'orcamentos', name: 'Orçamentos', icon: <Receipt size={18} /> },
-    { id: 'metas', name: 'Metas', icon: <Target size={18} /> },
-    { id: 'planejamento', name: 'Planejamento', icon: <BarChart3 size={18} /> },
-    { id: 'relatorios', name: 'Relatórios', icon: <BarChart3 size={18} /> },
-    { id: 'calendario', name: 'Calendário', icon: <Calendar size={18} /> },
-    { id: 'family', name: 'Família', icon: <Users size={18} /> },
-    { id: 'categories', name: 'Configurações', icon: <Settings size={18} /> },
-  ];
+  const getMenuItems = () => {
+    const baseItems = [
+      { id: 'dashboard', name: 'Visão Geral', icon: <LayoutDashboard size={18} /> },
+      { id: 'transactions', name: 'Transações', icon: <Receipt size={18} /> },
+    ];
+
+    const professionItems = [];
+    if (profession === 'motorista') {
+      professionItems.push({ id: 'uber99', name: 'Uber / 99', icon: <Car size={18} /> });
+    } else if (profession === 'vendedor') {
+      professionItems.push({ id: 'salgados', name: 'Salgados (Vendas)', icon: <Store size={18} /> });
+    } else {
+      professionItems.push({ id: 'entradas', name: 'Entradas', icon: <ArrowUpRight size={18} /> });
+      professionItems.push({ id: 'saidas', name: 'Saídas', icon: <ArrowDownRight size={18} /> });
+    }
+
+    const endItems = [
+      { id: 'orcamentos', name: 'Orçamentos', icon: <Receipt size={18} /> },
+      { id: 'metas', name: 'Metas', icon: <Target size={18} /> },
+      { id: 'planejamento', name: 'Planejamento', icon: <BarChart3 size={18} /> },
+      { id: 'relatorios', name: 'Relatórios', icon: <BarChart3 size={18} /> },
+      { id: 'calendario', name: 'Calendário', icon: <Calendar size={18} /> },
+      { id: 'family', name: 'Família', icon: <Users size={18} /> },
+      { id: 'categories', name: 'Configurações', icon: <Settings size={18} /> },
+    ];
+
+    return [...baseItems, ...professionItems, ...endItems];
+  };
+
+  const menuItems = getMenuItems();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

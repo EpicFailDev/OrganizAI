@@ -38,13 +38,15 @@ interface DashboardProps {
   profileName?: string;
   familyMembers?: string[];
   onNavigate?: (view: string) => void;
+  profession?: string;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   transactions,
   profileName,
   familyMembers = [],
-  onNavigate
+  onNavigate,
+  profession
 }) => {
   const name = profileName || 'Usuário';
 
@@ -175,9 +177,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* KPI Grid */}
       <div className="ios-kpi-grid">
-        <div className="ios-kpi-card" onClick={() => onNavigate?.('entradas')} style={{ cursor: 'pointer' }}>
+        <div className="ios-kpi-card" onClick={() => onNavigate?.(profession === 'motorista' ? 'transactions-uber99' : profession === 'vendedor' ? 'transactions-salgados' : 'entradas')} style={{ cursor: 'pointer' }}>
           <div className="ios-kpi-header">
-            <span className="ios-kpi-label">Receita Mensal</span>
+            <span className="ios-kpi-label">{profession === 'motorista' ? 'Ganhos do Mês' : profession === 'vendedor' ? 'Vendas do Mês' : 'Receita Mensal'}</span>
             <ArrowUpRight size={14} color="#30d158" />
           </div>
           <div className="ios-kpi-value" style={{ color: '#30d158', fontSize: '1.25rem' }}>
@@ -190,7 +192,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="ios-kpi-card" onClick={() => onNavigate?.('saidas')} style={{ cursor: 'pointer' }}>
           <div className="ios-kpi-header">
-            <span className="ios-kpi-label">Despesa Mensal</span>
+            <span className="ios-kpi-label">{profession === 'motorista' ? 'Custos do Mês' : profession === 'vendedor' ? 'Custos do Mês' : 'Despesa Mensal'}</span>
             <ArrowDownRight size={14} color="#ff453a" />
           </div>
           <div className="ios-kpi-value" style={{ color: '#ff453a', fontSize: '1.25rem' }}>
