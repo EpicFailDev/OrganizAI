@@ -6,13 +6,14 @@ import {
   BarChart3,
   TrendingUp,
   TrendingDown,
-  DollarSign,
   ShoppingCart,
   Plus,
   Loader2,
   X,
   Check,
-  Database
+  Database,
+  Percent,
+  Store
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { PricingCalculator } from './PricingCalculator';
@@ -63,6 +64,12 @@ type TabType = 'calculator' | 'base' | 'products' | 'sales' | 'reports';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+const formatShortDate = (value: string) => {
+  const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return value;
+  return `${m[3]}/${m[2]}`;
+};
 
 export const Vendas: React.FC<VendasProps> = ({
   familyId,
@@ -188,19 +195,13 @@ export const Vendas: React.FC<VendasProps> = ({
     const profit = totalSales - totalCosts;
     const margin = totalSales > 0 ? (profit / totalSales) * 100 : 0;
 
-    return {
-      totalSales,
-      totalCosts,
-      profit,
-      margin,
-      totalUnits
-    };
+    return { totalSales, totalCosts, profit, margin, totalUnits };
   }, [sales]);
 
   // Top products by revenue
   const topProducts = useMemo(() => {
     const productMap: Record<string, { name: string; revenue: number; count: number }> = {};
-    
+
     sales.forEach(s => {
       const name = s.products?.name || 'Produto';
       if (!productMap[s.product_id]) {
@@ -215,6 +216,8 @@ export const Vendas: React.FC<VendasProps> = ({
       .slice(0, 5);
   }, [sales]);
 
+  const hasSales = sales.length > 0;
+
   const tabs = [
     { id: 'calculator' as TabType, label: 'Calculadora', icon: Calculator },
     { id: 'base' as TabType, label: 'Base', icon: Database },
@@ -223,125 +226,266 @@ export const Vendas: React.FC<VendasProps> = ({
     { id: 'reports' as TabType, label: 'Relatórios', icon: BarChart3 },
   ];
 
+  // ---- shared inline style helpers (iOS dark tokens) ----
+  const card: React.CSSProperties = {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-lg)',
+    overflow: 'hidden'
+  };
+
+  const sectionTitle: React.CSSProperties = {
+    margin: 0,
+    color: 'var(--text-primary)',
+    fontFamily: 'var(--font-title)',
+    fontSize: '1rem',
+    fontWeight: 700,
+    letterSpacing: '-0.01em'
+  };
+
+  const EmptyState: React.FC<{ icon: React.ReactNode; title: string; hint: string; action?: React.ReactNode }> = ({
+    icon, title, hint, action
+  }) => (
+    <div style={{
+      padding: '2.5rem 1.25rem',
+      textAlign: 'center',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '0.65rem'
+    }}>
+      <div style={{
+        width: 64,
+        height: 64,
+        borderRadius: 'var(--radius-full)',
+        background: 'rgba(255,255,255,0.05)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--text-tertiary)'
+      }}>
+        {icon}
+      </div>
+      <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.95rem' }}>{title}</div>
+      <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', maxWidth: 260, lineHeight: 1.45 }}>{hint}</div>
+      {action}
+    </div>
+  );
+
+  const pillButton = (onClick: () => void, label: string): React.ReactElement => (
+    <button
+      onClick={onClick}
+      style={{
+        background: 'var(--color-primary)',
+        color: '#00250d',
+        border: 'none',
+        borderRadius: 'var(--radius-full)',
+        padding: '0.5rem 0.9rem',
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.35rem',
+        fontFamily: 'var(--font-title)',
+        fontWeight: 700,
+        fontSize: '0.8rem',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 2px 10px var(--color-primary-glow)'
+      }}
+    >
+      <Plus size={16} strokeWidth={2.6} />
+      {label}
+    </button>
+  );
+
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      gap: '1.5rem',
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '1rem',
       width: '100%',
       maxWidth: '100%',
       overflow: 'hidden'
     }}>
-      {/* Header */}
+      {/* ---------- HERO: saudação + faturamento ---------- */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '1rem'
+        ...card,
+        background: 'linear-gradient(160deg, rgba(48,209,88,0.20) 0%, rgba(48,209,88,0.05) 55%, rgba(28,28,30,0.9) 100%)',
+        border: '1px solid rgba(48,209,88,0.22)',
+        padding: '1.1rem 1.15rem 1.2rem'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{
+              margin: 0,
+              color: 'var(--text-secondary)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase'
+            }}>
+              {profileName ? `Olá, ${profileName.split(' ')[0]}` : 'Meu negócio'}
+            </p>
+            <div style={{
+              fontFamily: 'var(--font-title)',
+              fontSize: '2rem',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.03em',
+              lineHeight: 1.15,
+              marginTop: '0.2rem'
+            }}>
+              {formatCurrency(kpis.totalSales)}
+            </div>
+            <p style={{ margin: '0.15rem 0 0', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+              {hasSales
+                ? `Faturamento de ${sales.length} venda${sales.length > 1 ? 's' : ''} registrada${sales.length > 1 ? 's' : ''}`
+                : 'Nenhuma venda registrada ainda'}
+            </p>
+          </div>
           <div style={{
-            width: '48px',
-            height: '48px',
+            width: 46,
+            height: 46,
+            flexShrink: 0,
             borderRadius: 'var(--radius-md)',
-            background: 'linear-gradient(135deg, rgba(233, 30, 99, 0.25) 0%, rgba(244, 67, 54, 0.12) 100%)',
-            border: '1px solid rgba(233, 30, 99, 0.3)',
+            background: 'rgba(48,209,88,0.16)',
+            border: '1px solid rgba(48,209,88,0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <Calculator size={24} color="var(--color-primary)" />
+            <Store size={22} color="var(--color-primary)" />
           </div>
-          <div>
-            <h1 style={{ 
-              fontSize: '1.75rem', 
-              fontWeight: 800, 
-              color: '#fff', 
-              letterSpacing: '-0.02em' 
+        </div>
+
+        {/* Lucro / Margem inline */}
+        <div style={{
+          display: 'flex',
+          gap: '0.5rem',
+          marginTop: '0.9rem',
+          paddingTop: '0.85rem',
+          borderTop: '1px solid rgba(255,255,255,0.08)'
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Lucro
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-title)',
+              fontWeight: 700,
+              fontSize: '1.02rem',
+              color: kpis.profit >= 0 ? 'var(--color-income)' : 'var(--color-expense)'
             }}>
-              {profileName ? `Olá, ${profileName.split(' ')[0]}!` : 'Vendas'}
-            </h1>
-            <p style={{ 
-              color: 'var(--text-secondary)', 
-              fontSize: '0.82rem' 
-            }}>
-              Sua calculadora de gastos, vendas e lucro dos salgados
-            </p>
+              {formatCurrency(kpis.profit)}
+            </div>
+          </div>
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.08)' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Margem
+            </div>
+            <div style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.02rem', color: 'var(--color-meta)' }}>
+              {kpis.margin.toFixed(1)}%
+            </div>
+          </div>
+          <div style={{ width: 1, background: 'rgba(255,255,255,0.08)' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Unidades
+            </div>
+            <div style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.02rem', color: 'var(--text-primary)' }}>
+              {kpis.totalUnits}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* ---------- KPIs secundários (2 colunas no mobile) ---------- */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: '1rem'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: '0.65rem'
       }}>
         {[
-          { label: 'Unidades Vendidas', value: `${kpis.totalUnits}`, icon: <ShoppingCart size={16} />, color: '#ff9800' },
-          { label: 'Total Vendas', value: formatCurrency(kpis.totalSales), icon: <DollarSign size={16} />, color: '#4caf50' },
-          { label: 'Custos', value: formatCurrency(kpis.totalCosts), icon: <TrendingDown size={16} />, color: '#f44336' },
-          { label: 'Lucro', value: formatCurrency(kpis.profit), icon: <TrendingUp size={16} />, color: kpis.profit >= 0 ? '#4caf50' : '#f44336' },
-          { label: 'Margem', value: `${kpis.margin.toFixed(1)}%`, icon: <BarChart3 size={16} />, color: '#2196f3' },
+          { label: 'Custos', value: formatCurrency(kpis.totalCosts), icon: <TrendingDown size={15} />, color: 'var(--color-expense)', bg: 'var(--color-expense-bg)' },
+          { label: 'Ticket médio', value: formatCurrency(hasSales ? kpis.totalSales / sales.length : 0), icon: <ShoppingCart size={15} />, color: 'var(--color-warning)', bg: 'var(--color-warning-bg)' },
+          { label: 'Produtos', value: `${products.length}`, icon: <Package size={15} />, color: 'var(--color-secondary)', bg: 'rgba(10,132,255,0.12)' },
+          { label: 'Retorno', value: kpis.totalCosts > 0 ? `${((kpis.profit / kpis.totalCosts) * 100).toFixed(0)}%` : '—', icon: <Percent size={15} />, color: 'var(--color-income)', bg: 'var(--color-income-bg)' },
         ].map((kpi, i) => (
-          <div key={i} style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{kpi.label}</span>
-              <div style={{ backgroundColor: `${kpi.color}20`, padding: '0.3rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {React.cloneElement(kpi.icon, { color: kpi.color } as any)}
+          <div key={i} style={{ ...card, padding: '0.8rem 0.85rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{kpi.label}</span>
+              <div style={{
+                background: kpi.bg,
+                width: 26,
+                height: 26,
+                borderRadius: 'var(--radius-full)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: kpi.color,
+                flexShrink: 0
+              }}>
+                {kpi.icon}
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>{kpi.value}</div>
+            <div style={{
+              fontFamily: 'var(--font-title)',
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em'
+            }}>
+              {kpi.value}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Tab Navigation */}
-      <div style={{
-        display: 'flex',
-        background: 'rgba(255,255,255,0.06)',
-        borderRadius: 'var(--radius-xs)',
-        padding: '4px',
-        gap: '0'
-      }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              flex: 1,
-              padding: '0.75rem 0.5rem',
-              border: 'none',
-              borderRadius: '8px',
-              background: activeTab === tab.id ? 'rgba(255,255,255,0.12)' : 'transparent',
-              color: activeTab === tab.id ? '#fff' : 'var(--text-secondary)',
-              fontFamily: 'var(--font-title)',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.4rem',
-              transition: 'all 0.2s'
-            }}
-          >
-            <tab.icon size={16} />
-            {tab.label}
-          </button>
-        ))}
+      {/* ---------- Segmented tabs (scroll horizontal) ---------- */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '0.4rem',
+          overflowX: 'auto',
+          padding: '0.3rem',
+          background: 'rgba(255,255,255,0.05)',
+          borderRadius: 'var(--radius-full)',
+          scrollbarWidth: 'none',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
+        {tabs.map(tab => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                flex: '0 0 auto',
+                padding: '0.55rem 0.9rem',
+                border: 'none',
+                borderRadius: 'var(--radius-full)',
+                background: active ? 'var(--color-primary)' : 'transparent',
+                color: active ? '#00250d' : 'var(--text-secondary)',
+                fontFamily: 'var(--font-title)',
+                fontSize: '0.8rem',
+                fontWeight: active ? 700 : 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap',
+                transition: 'all var(--transition-fast)'
+              }}
+            >
+              <tab.icon size={15} strokeWidth={active ? 2.5 : 2} />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tab Content */}
+      {/* ---------- Tab Content ---------- */}
       <div style={{ width: '100%' }}>
         {activeTab === 'calculator' && (
           <PricingCalculator familyId={familyId} userId={userId} />
@@ -352,138 +496,184 @@ export const Vendas: React.FC<VendasProps> = ({
         )}
 
         {activeTab === 'products' && (
-          <div style={{
-            background: 'var(--bg-card)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, color: '#fff' }}>Produtos Cadastrados</h3>
-              <button
-                onClick={() => setShowProductModal(true)}
-                style={{
-                  background: 'var(--color-primary)',
-                  color: '#000',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  fontWeight: 'bold',
-                  fontSize: '0.82rem'
-                }}
-              >
-                <Plus size={16} />
-                Novo Produto
-              </button>
+          <div style={card}>
+            <div style={{
+              padding: '0.9rem 1rem',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '0.6rem'
+            }}>
+              <h3 style={sectionTitle}>Produtos</h3>
+              {products.length > 0 && pillButton(() => setShowProductModal(true), 'Novo')}
             </div>
 
             {products.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <Package size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                <p>Nenhum produto cadastrado ainda</p>
-              </div>
+              <EmptyState
+                icon={<Package size={28} />}
+                title="Nenhum produto cadastrado"
+                hint="Cadastre seus salgados e doces com preço de venda para registrar vendas rapidamente."
+                action={pillButton(() => setShowProductModal(true), 'Cadastrar produto')}
+              />
             ) : (
               <div>
-                {products.map(product => (
-                  <div key={product.id} style={{
-                    padding: '0.75rem 1rem',
-                    borderBottom: '1px solid var(--border-color)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: 600, color: '#fff' }}>{product.name}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{product.unit}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      {product.selling_price && (
-                        <div style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
-                          {formatCurrency(product.selling_price)}
+                {products.map((product, idx) => {
+                  const margin = product.selling_price && product.cost_price
+                    ? ((product.selling_price - product.cost_price) / product.selling_price) * 100
+                    : null;
+                  return (
+                    <div key={product.id} style={{
+                      padding: '0.85rem 1rem',
+                      borderTop: idx === 0 ? 'none' : '1px solid var(--border-color)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0 }}>
+                        <div style={{
+                          width: 36,
+                          height: 36,
+                          flexShrink: 0,
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(48,209,88,0.12)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Package size={17} color="var(--color-primary)" />
                         </div>
-                      )}
-                      {product.cost_price && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          Custo: {formatCurrency(product.cost_price)}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                            fontSize: '0.92rem',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {product.name}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            por {product.unit}
+                            {product.cost_price ? ` • custo ${formatCurrency(product.cost_price)}` : ''}
+                          </div>
                         </div>
-                      )}
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        {product.selling_price != null && (
+                          <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
+                            {formatCurrency(product.selling_price)}
+                          </div>
+                        )}
+                        {margin !== null && (
+                          <div style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            color: margin >= 0 ? 'var(--color-income)' : 'var(--color-expense)'
+                          }}>
+                            {margin.toFixed(0)}% margem
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         )}
 
         {activeTab === 'sales' && (
-          <div style={{
-            background: 'var(--bg-card)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, color: '#fff' }}>Registro de Vendas</h3>
-              <button
-                onClick={() => setShowSaleModal(true)}
-                style={{
-                  background: 'var(--color-primary)',
-                  color: '#000',
-                  border: 'none',
-                  borderRadius: '8px',
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  fontWeight: 'bold',
-                  fontSize: '0.82rem'
-                }}
-              >
-                <Plus size={16} />
-                Nova Venda
-              </button>
+          <div style={card}>
+            <div style={{
+              padding: '0.9rem 1rem',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '0.6rem'
+            }}>
+              <h3 style={sectionTitle}>Registro de vendas</h3>
+              {hasSales && pillButton(() => setShowSaleModal(true), 'Nova venda')}
             </div>
 
             {loading ? (
-              <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 <Loader2 size={24} className="spinner" />
               </div>
-            ) : sales.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <ShoppingBag size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                <p>Nenhuma venda registrada ainda</p>
-              </div>
+            ) : !hasSales ? (
+              <EmptyState
+                icon={<ShoppingBag size={28} />}
+                title="Nenhuma venda registrada"
+                hint={products.length === 0
+                  ? 'Cadastre um produto primeiro — depois registre suas vendas em 2 toques.'
+                  : 'Registre sua primeira venda para acompanhar faturamento, lucro e margem.'}
+                action={products.length === 0
+                  ? pillButton(() => setActiveTab('products'), 'Ir para Produtos')
+                  : pillButton(() => setShowSaleModal(true), 'Registrar venda')}
+              />
             ) : (
               <div>
-                {sales.map(sale => (
+                {sales.map((sale, idx) => (
                   <div key={sale.id} style={{
-                    padding: '0.75rem 1rem',
-                    borderBottom: '1px solid var(--border-color)',
+                    padding: '0.85rem 1rem',
+                    borderTop: idx === 0 ? 'none' : '1px solid var(--border-color)',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    gap: '0.75rem'
                   }}>
-                    <div>
-                      <div style={{ fontWeight: 600, color: '#fff' }}>
-                        {sale.products?.name || 'Produto'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', minWidth: 0 }}>
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        flexShrink: 0,
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--color-income-bg)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <span style={{
+                          fontSize: '0.62rem',
+                          fontWeight: 700,
+                          color: 'var(--color-income)',
+                          lineHeight: 1.1
+                        }}>
+                          {formatShortDate(sale.sale_date)}
+                        </span>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {sale.quantity}x {formatCurrency(Number(sale.unit_price))}
-                        {sale.customer_name && ` • ${sale.customer_name}`}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                          fontSize: '0.92rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {sale.products?.name || 'Produto'}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {sale.quantity}x {formatCurrency(Number(sale.unit_price))}
+                          {sale.customer_name && ` • ${sale.customer_name}`}
+                        </div>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontFamily: 'var(--font-title)' }}>
                         {formatCurrency(Number(sale.total_price))}
                       </div>
                       {sale.profit !== null && (
-                        <div style={{ fontSize: '0.75rem', color: Number(sale.profit) >= 0 ? '#4caf50' : '#f44336' }}>
-                          Lucro: {formatCurrency(Number(sale.profit))}
+                        <div style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          color: Number(sale.profit) >= 0 ? 'var(--color-income)' : 'var(--color-expense)'
+                        }}>
+                          {Number(sale.profit) >= 0 ? '+' : ''}{formatCurrency(Number(sale.profit))} lucro
                         </div>
                       )}
                     </div>
@@ -495,50 +685,57 @@ export const Vendas: React.FC<VendasProps> = ({
         )}
 
         {activeTab === 'reports' && (
-          <div style={{
-            background: 'var(--bg-card)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-              <h3 style={{ margin: 0, color: '#fff' }}>Top Produtos por Receita</h3>
+          <div style={card}>
+            <div style={{ padding: '0.9rem 1rem', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={sectionTitle}>Top produtos por receita</h3>
             </div>
 
             {topProducts.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <BarChart3 size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                <p>Dados insuficientes para relatórios</p>
-              </div>
+              <EmptyState
+                icon={<BarChart3 size={28} />}
+                title="Sem dados para relatório"
+                hint="Assim que você registrar vendas, o ranking de produtos aparece aqui."
+              />
             ) : (
               <div style={{ padding: '1rem' }}>
                 {topProducts.map((product, idx) => {
                   const maxRevenue = topProducts[0]?.revenue || 1;
                   const percentage = (product.revenue / maxRevenue) * 100;
                   return (
-                    <div key={idx} style={{ marginBottom: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <span style={{ color: '#fff', fontWeight: 600 }}>{product.name}</span>
-                        <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+                    <div key={idx} style={{ marginBottom: idx === topProducts.length - 1 ? 0 : '1.1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.4rem', gap: '0.6rem' }}>
+                        <span style={{
+                          color: 'var(--text-primary)',
+                          fontWeight: 600,
+                          fontSize: '0.9rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <span style={{ color: 'var(--text-tertiary)', marginRight: '0.4rem' }}>{idx + 1}</span>
+                          {product.name}
+                        </span>
+                        <span style={{ color: 'var(--color-primary)', fontWeight: 700, fontFamily: 'var(--font-title)', fontSize: '0.9rem', flexShrink: 0 }}>
                           {formatCurrency(product.revenue)}
                         </span>
                       </div>
-                      <div style={{ 
-                        width: '100%', 
-                        height: '8px', 
-                        background: 'rgba(255,255,255,0.1)', 
-                        borderRadius: '4px',
+                      <div style={{
+                        width: '100%',
+                        height: '6px',
+                        background: 'rgba(255,255,255,0.07)',
+                        borderRadius: 'var(--radius-full)',
                         overflow: 'hidden'
                       }}>
                         <div style={{
                           width: `${percentage}%`,
                           height: '100%',
-                          background: 'linear-gradient(90deg, #e91e63, #f44336)',
-                          borderRadius: '4px'
+                          background: 'linear-gradient(90deg, var(--color-primary), #64d2ff)',
+                          borderRadius: 'var(--radius-full)',
+                          transition: 'width var(--transition-normal)'
                         }} />
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                        {product.count} unidades vendidas
+                      <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
+                        {product.count} unidade{product.count > 1 ? 's' : ''} vendida{product.count > 1 ? 's' : ''}
                       </div>
                     </div>
                   );
@@ -567,7 +764,7 @@ export const Vendas: React.FC<VendasProps> = ({
                   type="text"
                   value={newProduct.name}
                   onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex: Salgado, Doce..."
+                  placeholder="Ex: Coxinha, Brigadeiro..."
                 />
               </div>
               <div className="ios-input-group" style={{ marginBottom: '1rem' }}>
@@ -575,9 +772,10 @@ export const Vendas: React.FC<VendasProps> = ({
                 <input
                   className="ios-input"
                   type="number"
+                  inputMode="decimal"
                   value={newProduct.selling_price}
                   onChange={(e) => setNewProduct(prev => ({ ...prev, selling_price: e.target.value }))}
-                  placeholder="0.00"
+                  placeholder="0,00"
                   min="0"
                   step="0.01"
                 />
@@ -634,17 +832,66 @@ export const Vendas: React.FC<VendasProps> = ({
                   ))}
                 </select>
               </div>
+
+              {/* Stepper de quantidade — mais rápido no mobile */}
               <div className="ios-input-group" style={{ marginBottom: '1rem' }}>
                 <label className="ios-input-label">Quantidade</label>
-                <input
-                  className="ios-input"
-                  type="number"
-                  value={newSale.quantity}
-                  onChange={(e) => setNewSale(prev => ({ ...prev, quantity: e.target.value }))}
-                  min="1"
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewSale(prev => ({
+                      ...prev,
+                      quantity: String(Math.max(1, (parseInt(prev.quantity) || 1) - 1))
+                    }))}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      flexShrink: 0,
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)',
+                      background: 'rgba(255,255,255,0.06)',
+                      color: 'var(--text-primary)',
+                      fontSize: '1.3rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    −
+                  </button>
+                  <input
+                    className="ios-input"
+                    type="number"
+                    inputMode="numeric"
+                    style={{ textAlign: 'center', flex: 1 }}
+                    value={newSale.quantity}
+                    onChange={(e) => setNewSale(prev => ({ ...prev, quantity: e.target.value }))}
+                    min="1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setNewSale(prev => ({
+                      ...prev,
+                      quantity: String((parseInt(prev.quantity) || 0) + 1)
+                    }))}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      flexShrink: 0,
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid rgba(48,209,88,0.3)',
+                      background: 'var(--color-income-bg)',
+                      color: 'var(--color-primary)',
+                      fontSize: '1.3rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-              <div className="ios-input-group" style={{ marginBottom: '1.5rem' }}>
+
+              <div className="ios-input-group" style={{ marginBottom: '1.25rem' }}>
                 <label className="ios-input-label">Cliente (opcional)</label>
                 <input
                   className="ios-input"
@@ -656,24 +903,45 @@ export const Vendas: React.FC<VendasProps> = ({
               </div>
 
               {/* Preview */}
-              {newSale.product_id && (
-                <div style={{
-                  background: 'rgba(76, 175, 80, 0.1)',
-                  border: '1px solid rgba(76, 175, 80, 0.3)',
-                  borderRadius: '8px',
-                  padding: '1rem',
-                  marginBottom: '1.5rem'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Total:</span>
-                    <span style={{ fontWeight: 'bold', color: '#4caf50' }}>
-                      {formatCurrency(
-                        (products.find(p => p.id === newSale.product_id)?.selling_price || 0) * (parseInt(newSale.quantity) || 1)
-                      )}
-                    </span>
+              {newSale.product_id && (() => {
+                const p = products.find(x => x.id === newSale.product_id);
+                const qty = parseInt(newSale.quantity) || 1;
+                const total = (p?.selling_price || 0) * qty;
+                const cost = (p?.cost_price || 0) * qty;
+                const lucro = total - cost;
+                return (
+                  <div style={{
+                    background: 'var(--color-income-bg)',
+                    border: '1px solid rgba(48,209,88,0.25)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.9rem 1rem',
+                    marginBottom: '1.25rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.4rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Total da venda</span>
+                      <span style={{
+                        fontFamily: 'var(--font-title)',
+                        fontWeight: 800,
+                        fontSize: '1.15rem',
+                        color: 'var(--color-primary)'
+                      }}>
+                        {formatCurrency(total)}
+                      </span>
+                    </div>
+                    {p?.cost_price ? (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Lucro estimado</span>
+                        <span style={{ fontWeight: 600, color: lucro >= 0 ? 'var(--color-income)' : 'var(--color-expense)' }}>
+                          {formatCurrency(lucro)}
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <button
                 className="ios-btn ios-btn-primary"
