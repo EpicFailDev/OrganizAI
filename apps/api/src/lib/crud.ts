@@ -222,6 +222,10 @@ export function defineResource(options: ResourceOptions): OpenAPIHono<AppEnv> {
           content: { 'application/json': { schema: OK_OBJECT } },
           description: 'Recurso removido com sucesso',
         },
+        404: {
+          content: { 'application/json': { schema: ErrorResponseSchema } },
+          description: 'Recurso não encontrado',
+        },
         500: {
           content: { 'application/json': { schema: ErrorResponseSchema } },
           description: 'Erro ao remover o recurso',
@@ -233,8 +237,16 @@ export function defineResource(options: ResourceOptions): OpenAPIHono<AppEnv> {
       const db = getDb(c);
       const { id } = c.req.valid('param');
 
-      const { error } = await db.from(table).delete().eq('id', id);
+      // .select() retorna as linhas realmente removidas; se nenhuma, o recurso
+      // não existe (ou o RLS impediu) — respondemos 404.
+      const { data: deleted, error } = await db
+        .from(table)
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
       if (error) return dbErrorHandler(error);
+      if (!deleted) return c.json({ error: `${labels.entity} não encontrado` }, 404);
 
       return c.json({ success: true, message: `${labels.entity} removido com sucesso` }, 200);
     });

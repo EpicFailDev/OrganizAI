@@ -102,7 +102,7 @@ const replaceRecipeItemsRoute = createRoute({
   method: 'put',
   path: '/v1/pricing-recipes/{id}/items',
   summary: 'Substituir Itens da Receita',
-  description: 'Remove todos os itens atuais da receita e insere os novos.',
+  description: 'Remove todos os itens atuais da receita e insere os novos (em uma única transação no banco).',
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: {
@@ -126,19 +126,15 @@ recipesApp.openapi(replaceRecipeItemsRoute, async (c) => {
   const { id } = c.req.valid('param');
   const { items } = c.req.valid('json');
 
-  const { error: deleteError } = await db.from('recipe_items').delete().eq('recipe_id', id);
-  if (deleteError) return dbErrorHandler(deleteError);
+  // RPC transacional (SECURITY DEFINER): valida que a receita é da família do
+  // usuário, remove os itens atuais e insere os novos num único passo.
+  const { data, error } = await db.rpc('replace_recipe_items', {
+    p_recipe_id: id,
+    p_items: items,
+  });
+  if (error) return dbErrorHandler(error);
 
-  if (items.length === 0) {
-    return c.json({ success: true, count: 0 }, 200);
-  }
-
-  const { error: insertError } = await db
-    .from('recipe_items')
-    .insert(items.map((item) => ({ recipe_id: id, ...item })));
-  if (insertError) return dbErrorHandler(insertError);
-
-  return c.json({ success: true, count: items.length }, 200);
+  return c.json({ success: true, count: Number(data ?? items.length) }, 200);
 });
 
 // PATCH /v1/pricing-recipes/:id/products-cost
@@ -162,6 +158,10 @@ const updateRecipeProductsCostRoute = createRoute({
       content: { 'application/json': { schema: z.object({ success: z.boolean(), count: z.number() }) } },
       description: 'Produtos atualizados com sucesso',
     },
+    404: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Receita não encontrada',
+    },
     500: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao atualizar produtos',
@@ -173,6 +173,16 @@ recipesApp.openapi(updateRecipeProductsCostRoute, async (c) => {
   const db = getDb(c);
   const { id } = c.req.valid('param');
   const { cost_price } = c.req.valid('json');
+
+  // Garante que a receita existe e pertence à família do usuário (o SELECT
+  // passa pela RLS de pricing_recipes). Caso contrário, 404.
+  const { data: recipe, error: recipeError } = await db
+    .from('pricing_recipes')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle();
+  if (recipeError) return dbErrorHandler(recipeError);
+  if (!recipe) return c.json({ error: 'Receita não encontrada' }, 404);
 
   const { data, error } = await db
     .from('products')

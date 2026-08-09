@@ -28,11 +28,13 @@ analyticsApp.openapi(summaryRoute, async (c) => {
   const db = getDb(c);
   const userId = getUserId(c);
 
-  // Identifica a família do usuário logado a partir da associação mais antiga.
+  // Identifica a família do usuário logado a partir da associação mais antiga
+  // (determinístico: join mais antigo) para usuários em múltiplas famílias.
   const { data: membership, error: membershipError } = await db
     .from('family_members')
     .select('family_id')
     .eq('profile_id', userId)
+    .order('joined_at', { ascending: true })
     .limit(1)
     .maybeSingle();
   if (membershipError) return dbErrorHandler(membershipError);

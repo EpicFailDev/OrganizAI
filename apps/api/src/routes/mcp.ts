@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { createMcpServer } from '../mcp/server.js';
-import { createUserClient } from '../lib/supabase.js';
+import { supabase, createUserClient } from '../lib/supabase.js';
 import type { AppEnv } from '../lib/request-context.js';
 
 // Endpoint HTTP do Model Context Protocol (Streamable HTTP).
@@ -13,6 +13,9 @@ import type { AppEnv } from '../lib/request-context.js';
 //
 // Aqui usamos Stateful com gestão de sessões em memória, compatível com os
 // clientes MCP que negociam initialize/notifications via HTTP.
+//
+// NOTA: o rate limit de /mcp é aplicado pela app principal (app.ts), evitando
+// dupla contagem e mantendo o bucket por instância da app (não por singleton).
 
 const mcpApp = new Hono<AppEnv>();
 
@@ -57,9 +60,20 @@ mcpApp.all('/mcp', async (c) => {
 
   // Cliente Supabase escopado ao token JWT do request (Authorization: Bearer),
   // para que as ferramentas MCP respeitem a RLS do usuário autenticado.
+  // O userId resolvido é injetado no servidor MCP (a ferramenta add_transaction
+  // o usa para preencher created_by sem depender de sessão do supabase-js).
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
-  const mcpClient = token ? createUserClient(token) : c.get('supabase');
+
+  let userId: string | undefined;
+  let mcpClient = c.get('supabase');
+  if (token) {
+    const { data, error } = await supabase.auth.getUser(token);
+    if (!error && data.user) {
+      userId = data.user.id;
+      mcpClient = createUserClient(token);
+    }
+  }
 
   // Nova sessão: cria o transport com sessionIdGenerator e conecta o McpServer.
   const transport = new WebStandardStreamableHTTPServerTransport({
@@ -74,7 +88,7 @@ mcpApp.all('/mcp', async (c) => {
     },
   });
 
-  const server = createMcpServer(mcpClient);
+  const server = createMcpServer(mcpClient, { userId });
   await server.connect(transport);
 
   return transport.handleRequest(req);

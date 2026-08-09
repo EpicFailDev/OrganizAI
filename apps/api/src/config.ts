@@ -13,11 +13,11 @@ export const config = {
 
   supabase: {
     url: env.VITE_SUPABASE_URL || env.SUPABASE_URL || '',
-    // Anon key é suficiente para as rotas /v1 (RLS escopa os dados por token).
-    // A service role key só deve ser usada em operações administrativas fora
-    // do fluxo HTTP de usuário autenticado.
-    anonKey:
-      env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '',
+    // IMPORTANTE (segurança): NUNCA usar SUPABASE_SERVICE_ROLE_KEY como chave
+    // do cliente. A service role key burla o RLS e, se fosse injetada como
+    // `apikey`, qualquer usuário autenticado acessaria dados de todas as
+    // famílias. O fluxo HTTP usa apenas a chave anônima + token do usuário.
+    anonKey: env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || '',
   },
 
   /** Servidores divulgados na especificação OpenAPI. */
@@ -36,9 +36,20 @@ export const config = {
   bodyLimitBytes: 1024 * 1024, // 1 MB
 
   cors: {
-    origin: env.CORS_ORIGIN || '*',
+    // Default restrito: origens de desenvolvimento e os domínios oficiais.
+    // Em produção, sobrescreva com CORS_ORIGIN (separado por vírgula) se o
+    // frontend consumir a API de outra origem.
+    origin: env.CORS_ORIGIN
+      ? env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+      : [
+          'http://localhost:5173',
+          'http://localhost:3000',
+          'https://organizai.duckdns.org',
+          'https://doc.organizai.duckdns.org',
+        ],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400,
   },
 
   rateLimit: {

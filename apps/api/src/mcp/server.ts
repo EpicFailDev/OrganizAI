@@ -4,6 +4,16 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase.js';
 import { computeFinancialSummary } from '../services/financial-summary.js';
 
+export interface McpServerOptions {
+  /**
+   * ID do usuário autenticado, resolvido pelo transporte HTTP a partir do
+   * token JWT (Authorization: Bearer). É injetado para que a ferramenta
+   * `add_transaction` preencha `created_by` sem depender de uma sessão do
+   * cliente supabase-js (que não existe em clientes descartáveis).
+   */
+  userId?: string;
+}
+
 /**
  * Fábrica do servidor MCP do OrganizAI.
  *
@@ -14,7 +24,10 @@ import { computeFinancialSummary } from '../services/financial-summary.js';
  * usuário autenticado (transporte HTTP). Se omitido, usa o cliente padrão
  * (anon), que só enxerga dados públicos/da própria família via token.
  */
-export function createMcpServer(client: SupabaseClient = supabase): McpServer {
+export function createMcpServer(
+  client: SupabaseClient = supabase,
+  options: McpServerOptions = {}
+): McpServer {
   const server = new McpServer({
     name: 'OrganizAI MCP Backend',
     version: '1.0.0',
@@ -123,11 +136,11 @@ export function createMcpServer(client: SupabaseClient = supabase): McpServer {
       date: z.string().describe('Data no formato YYYY-MM-DD'),
     },
     async ({ family_id, description, amount, type, category_id, date }) => {
-      // RLS exige created_by = auth.uid(); resolve o usuário do token injetado.
-      const { data: sessionUser, error: authError } = await client.auth.getUser();
-      const createdBy = sessionUser?.user?.id;
+      // O transporte HTTP injeta o userId resolvido do token JWT (RLS exige
+      // created_by = auth.uid()). Sem ele, a ferramenta exige autenticação.
+      const createdBy = options.userId;
 
-      if (authError || !createdBy) {
+      if (!createdBy) {
         return {
           content: [
             {

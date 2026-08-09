@@ -7,6 +7,17 @@ export const ErrorResponseSchema = z.object({
   error: z.string().openapi({ example: 'Recurso não encontrado ou erro de autenticação' }),
 }).openapi('ErrorResponse');
 
+// Validação de formato para datas (AAAA-MM-DD) e horas (HH:MM:SS). Campos
+// inválidos são rejeitados com 400 antes de chegarem ao banco (que, de outra
+// forma, retornaria erro de cast mapeado como 500).
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
+
+const isoDate = (message = 'Data deve estar no formato AAAA-MM-DD') =>
+  z.string().regex(ISO_DATE_RE, message);
+const isoTime = (message = 'Horário deve estar no formato HH:MM:SS') =>
+  z.string().regex(ISO_TIME_RE, message);
+
 // Refs para colunas embutidas (joins) — tipam as listagens sem usar z.any().
 export const CategoryRefSchema = z.object({
   name: z.string(),
@@ -37,7 +48,7 @@ export const TransactionTypeSchema = z.enum(['expense', 'income']).openapi('Tran
 export const TransactionSchema = z.object({
   id: z.string().uuid().openapi({ example: 'e3b0c442-98fc-11ee-b9d1-0242ac120002' }),
   family_id: z.string().uuid().openapi({ example: 'a1b2c3d4-0000-0000-0000-000000000001' }),
-  date: z.string().openapi({ example: '2026-08-08' }),
+  date: isoDate().openapi({ example: '2026-08-08' }),
   description: z.string().openapi({ example: 'Supermercado Mensal' }),
   category_id: z.string().uuid().openapi({ example: 'a1b2c3d4-0000-0000-0000-000000000001' }),
   subcategory_id: z.string().uuid().nullable().optional(),
@@ -45,7 +56,7 @@ export const TransactionSchema = z.object({
   amount: z.number().openapi({ example: 450.75 }),
   created_by: z.string().uuid().openapi({ example: 'a1b2c3d4-0000-0000-0000-000000000002' }),
   attachment_url: z.string().nullable().optional(),
-  time: z.string().nullable().optional().openapi({ example: '14:30:00' }),
+  time: isoTime().nullable().optional().openapi({ example: '14:30:00' }),
   created_at: z.string().optional(),
 }).openapi('Transaction');
 
@@ -56,14 +67,14 @@ export const CreateTransactionSchema = z.object({
   type: TransactionTypeSchema.default('expense'),
   category_id: z.string().uuid().openapi({ example: 'a1b2c3d4-0000-0000-0000-000000000001' }),
   subcategory_id: z.string().uuid().nullable().optional(),
-  date: z.string().openapi({ example: '2026-08-08' }),
-  time: z.string().nullable().optional().openapi({ example: '14:30:00' }),
+  date: isoDate().openapi({ example: '2026-08-08' }),
+  time: isoTime().nullable().optional().openapi({ example: '14:30:00' }),
   attachment_url: z.string().nullable().optional(),
 }).openapi('CreateTransaction');
 
 export const UpdateTransactionSchema = z.object({
-  date: z.string().optional(),
-  time: z.string().nullable().optional(),
+  date: isoDate().optional(),
+  time: isoTime().nullable().optional(),
   description: z.string().optional(),
   amount: z.number().positive('O valor deve ser maior que zero').optional(),
   type: TransactionTypeSchema.optional(),
@@ -88,7 +99,7 @@ export const ReceiptItemSchema = z.object({
 export const TransactionListItemSchema = z.object({
   id: z.string().uuid(),
   family_id: z.string().uuid(),
-  date: z.string(),
+  date: isoDate(),
   description: z.string(),
   category_id: z.string().uuid().nullable().optional(),
   subcategory_id: z.string().uuid().nullable().optional(),
@@ -96,7 +107,7 @@ export const TransactionListItemSchema = z.object({
   amount: z.number(),
   created_by: z.string().uuid(),
   attachment_url: z.string().nullable().optional(),
-  time: z.string().nullable().optional(),
+  time: isoTime().nullable().optional(),
   created_at: z.string().optional(),
   categories: CategoryRefSchema,
   subcategories: SubcategoryRefSchema,
@@ -205,7 +216,7 @@ export const GoalSchema = z.object({
   name: z.string().openapi({ example: 'Viagem de Fim de Ano' }),
   target_amount: z.number().openapi({ example: 5000.0 }),
   current_amount: z.number().openapi({ example: 2100.0 }),
-  deadline: z.string().nullable().optional().openapi({ example: '2026-12-31' }),
+  deadline: isoDate().nullable().optional().openapi({ example: '2026-12-31' }),
   icon: z.string().nullable().optional(),
   color: z.string().nullable().optional(),
   status: z.string().optional(),
@@ -216,7 +227,7 @@ export const CreateGoalSchema = z.object({
   family_id: z.string().uuid(),
   name: z.string().min(1),
   target_amount: z.number().positive(),
-  deadline: z.string().nullable().optional(),
+  deadline: isoDate().nullable().optional(),
   icon: z.string().optional(),
   color: z.string().optional(),
 }).openapi('CreateGoal');
@@ -225,7 +236,7 @@ export const UpdateGoalSchema = z.object({
   name: z.string().optional(),
   target_amount: z.number().optional(),
   current_amount: z.number().optional(),
-  deadline: z.string().nullable().optional(),
+  deadline: isoDate().nullable().optional(),
   status: z.enum(['active', 'completed', 'cancelled']).optional(),
 }).openapi('UpdateGoal');
 
@@ -239,7 +250,7 @@ export const PlanningItemSchema = z.object({
   type: z.enum(['income', 'expense']),
   amount: z.number(),
   category_id: z.string().uuid().nullable().optional(),
-  expected_date: z.string(),
+  expected_date: isoDate(),
   recurring: z.boolean().optional(),
   recurring_pattern: z.string().nullable().optional(),
   status: z.string().optional(),
@@ -254,7 +265,7 @@ export const CreatePlanningItemSchema = z.object({
   type: z.enum(['income', 'expense']),
   amount: z.number().positive(),
   category_id: z.string().uuid().nullable().optional(),
-  expected_date: z.string(),
+  expected_date: isoDate(),
   recurring: z.boolean().optional().default(false),
   recurring_pattern: z.string().nullable().optional(),
 }).openapi('CreatePlanningItem');
@@ -263,7 +274,7 @@ export const UpdatePlanningItemSchema = z.object({
   status: z.enum(['pending', 'confirmed', 'cancelled']).optional(),
   description: z.string().optional(),
   amount: z.number().optional(),
-  expected_date: z.string().optional(),
+  expected_date: isoDate().optional(),
 }).openapi('UpdatePlanningItem');
 
 // ----------------------------------------------------
@@ -382,8 +393,8 @@ export const SaleSchema = z.object({
   total_price: z.number(),
   cost_price: z.number().nullable().optional(),
   profit: z.number().nullable().optional(),
-  sale_date: z.string(),
-  sale_time: z.string().nullable().optional(),
+  sale_date: isoDate(),
+  sale_time: isoTime().nullable().optional(),
   customer_name: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   created_by: z.string().uuid().nullable().optional(),
@@ -399,8 +410,8 @@ export const CreateSaleSchema = z.object({
   total_price: z.number(),
   cost_price: z.number().nullable().optional(),
   profit: z.number().nullable().optional(),
-  sale_date: z.string(),
-  sale_time: z.string().nullable().optional(),
+  sale_date: isoDate(),
+  sale_time: isoTime().nullable().optional(),
   customer_name: z.string().nullable().optional(),
 }).openapi('CreateSale');
 
@@ -411,8 +422,8 @@ export const UpdateSaleSchema = z.object({
   total_price: z.number().optional(),
   cost_price: z.number().nullable().optional(),
   profit: z.number().nullable().optional(),
-  sale_date: z.string().optional(),
-  sale_time: z.string().nullable().optional(),
+  sale_date: isoDate().optional(),
+  sale_time: isoTime().nullable().optional(),
   customer_name: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
 }).openapi('UpdateSale');

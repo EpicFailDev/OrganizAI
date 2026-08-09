@@ -9,6 +9,9 @@ const { url, anonKey } = config.supabase;
  * Placeholder quando as envs estão ausentes (ex.: healthcheck em dev) para o
  * servidor subir sem crash. As rotas /v1/* usam o cliente escopado ao token
  * via `createUserClient()` e falharão se não houver env válida.
+ *
+ * NOTA DE SEGURANÇA: a chave usada aqui é SEMPRE a anônima. A service role
+ * key nunca é injetada como `apikey` (ela desativaria o RLS do PostgREST).
  */
 export const supabase = createClient(
   url || 'https://supabase-placeholder.invalid',

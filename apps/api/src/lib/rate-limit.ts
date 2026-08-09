@@ -27,7 +27,17 @@ export function rateLimit(
 
   return async (c, next) => {
     const forwarded = c.req.header('x-forwarded-for');
-    const peer = getConnInfo(c).remote.address;
+
+    // getConnInfo depende do servidor node-server (env.incoming). Em ambientes
+    // sem essa informação (ex.: testes com app.request) caímos para 'unknown'
+    // em vez de lançar.
+    let peer: string | undefined;
+    try {
+      peer = getConnInfo(c).remote.address;
+    } catch {
+      peer = undefined;
+    }
+
     const ip = forwarded?.split(',')[0]?.trim() || peer || 'unknown';
     const now = Date.now();
 
