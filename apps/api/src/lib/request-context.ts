@@ -8,6 +8,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export type AppEnv = {
   Variables: {
     supabase: SupabaseClient;
+    /** ID do usuário autenticado (auth.uid()) extraído do JWT validado. */
+    userId?: string;
   };
 };
 

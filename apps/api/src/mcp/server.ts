@@ -1,13 +1,19 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase.js';
 
 /**
  * Fábrica do servidor MCP do OrganizAI.
+ *
  * As mesmas ferramentas são usadas tanto pelo transporte STDIO (CLI/CI) quanto
  * pelo transporte HTTP Streamable (/mcp), garantindo comportamento idêntico.
+ *
+ * O cliente Supabase pode ser injetado para que as chamadas respeitem a RLS do
+ * usuário autenticado (transporte HTTP). Se omitido, usa o cliente padrão
+ * (anon), que só enxerga dados públicos/da própria família via token.
  */
-export function createMcpServer(): McpServer {
+export function createMcpServer(client: SupabaseClient = supabase): McpServer {
   const server = new McpServer({
     name: 'OrganizAI MCP Backend',
     version: '1.0.0',
@@ -24,7 +30,7 @@ export function createMcpServer(): McpServer {
         .describe('UUID da família cujo resumo financeiro deve ser calculado'),
     },
     async ({ family_id }) => {
-      const { data: txs, error } = await supabase
+      const { data: txs, error } = await client
         .from('transactions')
         .select('amount, type')
         .eq('family_id', family_id);
@@ -81,9 +87,9 @@ export function createMcpServer(): McpServer {
         .describe('Quantidade máxima de transações a retornar (padrão 10)'),
     },
     async ({ family_id, limit }) => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('transactions')
-        .select('id, description, amount, type, date, notes')
+        .select('id, description, amount, type, date, time, category_id, subcategory_id, created_by')
         .eq('family_id', family_id)
         .order('date', { ascending: false })
         .limit(limit);
@@ -118,16 +124,32 @@ export function createMcpServer(): McpServer {
       description: z.string().min(1).describe('Descrição da transação (ex: Almoço, Salário, Conta de Luz)'),
       amount: z.number().positive().describe('Valor em reais'),
       type: z
-        .enum(['expense', 'income', 'transfer'])
+        .enum(['expense', 'income'])
         .default('expense')
         .describe('Tipo da transação'),
+      category_id: z.string().uuid().describe('UUID da categoria da transação'),
       date: z.string().describe('Data no formato YYYY-MM-DD'),
-      notes: z.string().optional().describe('Observações adicionais'),
     },
-    async ({ family_id, description, amount, type, date, notes }) => {
-      const { data, error } = await supabase
+    async ({ family_id, description, amount, type, category_id, date }) => {
+      // RLS exige created_by = auth.uid(); resolve o usuário do token injetado.
+      const { data: sessionUser, error: authError } = await client.auth.getUser();
+      const createdBy = sessionUser?.user?.id;
+
+      if (authError || !createdBy) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Autenticação necessária: envie um token JWT válido (Authorization: Bearer <token>).',
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const { data, error } = await client
         .from('transactions')
-        .insert([{ family_id, description, amount, type, date, notes }])
+        .insert([{ family_id, description, amount, type, category_id, date, created_by: createdBy }])
         .select()
         .single();
 
@@ -161,7 +183,7 @@ export function createMcpServer(): McpServer {
         .describe('UUID da família; se omitido, retorna apenas as categorias globais padrão'),
     },
     async ({ family_id }) => {
-      const query = supabase.from('categories').select('*').order('name');
+      const query = client.from('categories').select('*').order('name');
 
       if (family_id) {
         query.or(`family_id.is.null,family_id.eq.${family_id}`);

@@ -20,12 +20,24 @@ import llmsApp from './routes/llms.js';
 import mcpApp from './routes/mcp.js';
 
 import { cors } from 'hono/cors';
+import { bodyLimit } from 'hono/body-limit';
+import { logger } from 'hono/logger';
+import { secureHeaders } from 'hono/secure-headers';
 import { supabase, createUserClient } from './lib/supabase.js';
+import { rateLimit } from './lib/rate-limit.js';
 import type { AppEnv } from './lib/request-context.js';
 
 dotenv.config();
 
 const app = new OpenAPIHono<AppEnv>();
+
+// Log de requisições + headers de segurança padrão
+app.use('*', logger());
+app.use('*', secureHeaders());
+app.use('*', bodyLimit({
+  maxSize: 1024 * 1024, // 1 MB
+  onError: (c) => c.json({ error: 'Corpo da requisição excede o limite de 1 MB' }, 413),
+}));
 
 // Middleware CORS nativo do Hono
 app.use('*', cors({
@@ -34,13 +46,42 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Middleware de autenticação: extrai o JWT do usuário e cria um cliente
-// Supabase escopado ao token, de modo que o PostgREST aplique as políticas RLS.
-app.use('*', async (c, next) => {
+// Rate limit básico em memória (por IP) para as rotas de API /v1/*
+app.use('/v1/*', rateLimit({ windowMs: 60_000, max: 120 }));
+
+/**
+ * Middleware de autenticação: exige um JWT válido do Supabase Auth em todas
+ * as rotas /v1/*. O token é validado via supabase.auth.getUser() (verifica
+ * assinatura/expiração) e injeta um cliente Supabase escopado ao token, de
+ * modo que o PostgREST aplique as políticas RLS daquele usuário.
+ *
+ * Rotas públicas (healthz, doc, llms, mcp) continuam acessíveis sem token.
+ */
+app.use('/v1/*', async (c, next) => {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
-  c.set('supabase', token ? createUserClient(token) : supabase);
+
+  if (!token) {
+    return c.json({ error: 'Não autenticado: informe um token JWT válido no header Authorization' }, 401);
+  }
+
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error || !data.user) {
+    return c.json({ error: 'Token inválido ou expirado' }, 401);
+  }
+
+  c.set('supabase', createUserClient(token));
+  c.set('userId', data.user.id);
   await next();
+});
+
+// Rotas fora de /v1/* também recebem um cliente (para o MCP sem token).
+app.use('*', (c, next) => {
+  if (!c.get('supabase')) {
+    c.set('supabase', supabase);
+  }
+  return next();
 });
 
 // Acopla as sub-aplicações com documentação Zod OpenAPI
@@ -59,6 +100,15 @@ app.route('/', salesApp);
 app.route('/', receiptItemsApp);
 app.route('/', llmsApp);
 app.route('/', mcpApp);
+
+// Handler global de erros não capturados
+app.onError((err, c) => {
+  console.error('Erro não tratado:', err);
+  return c.json({ error: 'Erro interno do servidor' }, 500);
+});
+
+// 404 JSON padronizado
+app.notFound((c) => c.json({ error: 'Rota não encontrada' }, 404));
 
 // ----------------------------------------------------
 // Especificação OpenAPI 3.0 em JSON

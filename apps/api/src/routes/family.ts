@@ -156,16 +156,12 @@ const getMyFamilyRoute = createRoute({
 
 familyApp.openapi(getMyFamilyRoute, async (c) => {
   const db = getDb(c);
-
-  const { data: user, error: userError } = await db.auth.getUser();
-  if (userError || !user.user) {
-    return c.json({ error: 'Não autenticado' }, 401);
-  }
+  const userId = c.get('userId');
 
   const { data, error } = await db
     .from('family_members')
     .select('*, family_groups(*)')
-    .eq('profile_id', user.user.id)
+    .eq('profile_id', userId)
     .maybeSingle();
 
   if (error) {

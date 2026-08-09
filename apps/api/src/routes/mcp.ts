@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { createMcpServer } from '../mcp/server.js';
+import { createUserClient } from '../lib/supabase.js';
+import type { AppEnv } from '../lib/request-context.js';
 
 // Endpoint HTTP do Model Context Protocol (Streamable HTTP).
 //
@@ -12,7 +14,7 @@ import { createMcpServer } from '../mcp/server.js';
 // Aqui usamos Stateful com gestão de sessões em memória, compatível com os
 // clientes MCP que negociam initialize/notifications via HTTP.
 
-const mcpApp = new Hono();
+const mcpApp = new Hono<AppEnv>();
 
 // Mapa de sessões MCP ativas (sessionId -> transport).
 const sessions = new Map<string, WebStandardStreamableHTTPServerTransport>();
@@ -50,6 +52,12 @@ mcpApp.all('/mcp', async (c) => {
     return new Response('Sessão MCP não encontrada', { status: 404 });
   }
 
+  // Cliente Supabase escopado ao token JWT do request (Authorization: Bearer),
+  // para que as ferramentas MCP respeitem a RLS do usuário autenticado.
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+  const mcpClient = token ? createUserClient(token) : c.get('supabase');
+
   // Nova sessão: cria o transport com sessionIdGenerator e conecta o McpServer.
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: () => crypto.randomUUID(),
@@ -63,7 +71,7 @@ mcpApp.all('/mcp', async (c) => {
     },
   });
 
-  const server = createMcpServer();
+  const server = createMcpServer(mcpClient);
   await server.connect(transport);
 
   return transport.handleRequest(req);

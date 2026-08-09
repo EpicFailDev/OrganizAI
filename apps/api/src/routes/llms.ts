@@ -76,13 +76,13 @@ interface Transaction {
   family_id: string;
   description: string; // Ex: "Supermercado"
   amount: number; // Ex: 150.50
-  type: 'expense' | 'income' | 'transfer';
-  category_id?: string | null;
+  type: 'expense' | 'income';
+  category_id: string;
   subcategory_id?: string | null;
   date: string; // ISO Date YYYY-MM-DD
+  time?: string | null; // HH:MM:SS
   created_by: string; // UUID do usuário
   attachment_url?: string | null;
-  notes?: string | null;
   categories?: { name: string; color?: string } | null;
   receipt_items?: ReceiptItem[] | null;
 }
