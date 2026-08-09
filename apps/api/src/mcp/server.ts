@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase.js';
+import { computeFinancialSummary } from '../services/financial-summary.js';
 
 /**
  * Fábrica do servidor MCP do OrganizAI.
@@ -30,41 +31,32 @@ export function createMcpServer(client: SupabaseClient = supabase): McpServer {
         .describe('UUID da família cujo resumo financeiro deve ser calculado'),
     },
     async ({ family_id }) => {
-      const { data: txs, error } = await client
-        .from('transactions')
-        .select('amount, type')
-        .eq('family_id', family_id);
+      try {
+        const summary = await computeFinancialSummary(client, family_id);
 
-      if (error) {
         return {
-          content: [{ type: 'text', text: `Erro ao buscar dados: ${error.message}` }],
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  total_expenses: summary.total_expenses,
+                  total_income: summary.total_income,
+                  net_balance: summary.net_balance,
+                  total_transactions: summary.transactions_count,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `Erro ao buscar dados: ${(error as Error).message}` }],
           isError: true,
         };
       }
-
-      let totalExpenses = 0;
-      let totalIncome = 0;
-
-      (txs || []).forEach((t: { amount: number; type: string }) => {
-        if (t.type === 'expense') totalExpenses += Number(t.amount || 0);
-        if (t.type === 'income') totalIncome += Number(t.amount || 0);
-      });
-
-      const summary = {
-        total_expenses: Number(totalExpenses.toFixed(2)),
-        total_income: Number(totalIncome.toFixed(2)),
-        net_balance: Number((totalIncome - totalExpenses).toFixed(2)),
-        total_transactions: txs?.length || 0,
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(summary, null, 2),
-          },
-        ],
-      };
     }
   );
 

@@ -1,30 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
+import { config } from '../config.js';
 
-dotenv.config();
+const { url, anonKey } = config.supabase;
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-if (!supabaseUrl || !supabaseKey) {
-  console.warn('⚠️ SUPABASE_URL ou SUPABASE_ANON_KEY não definidos em .env');
-}
-
-// Placeholder somente para o servidor subir sem crash quando as envs estiverem
-// ausentes (ex.: healthcheck em ambiente de dev). As rotas /v1/* usam o
-// cliente escopado ao token via createUserClient() e falharão se não houver env.
+/**
+ * Cliente Supabase com a chave anônima.
+ *
+ * Placeholder quando as envs estão ausentes (ex.: healthcheck em dev) para o
+ * servidor subir sem crash. As rotas /v1/* usam o cliente escopado ao token
+ * via `createUserClient()` e falharão se não houver env válida.
+ */
 export const supabase = createClient(
-  supabaseUrl || 'https://supabase-placeholder.invalid',
-  supabaseKey || 'placeholder'
+  url || 'https://supabase-placeholder.invalid',
+  anonKey || 'placeholder'
 );
 
 /**
  * Cria um cliente Supabase escopado ao token JWT do usuário autenticado.
- * O token é enviado como `Authorization` em todos os requests, fazendo com
+ *
+ * O token é enviado como `Authorization` em todas as requisições, fazendo com
  * que o PostgREST aplique as políticas RLS daquele usuário.
  */
 export function createUserClient(accessToken: string) {
-  return createClient(supabaseUrl, supabaseKey, {
+  return createClient(url, anonKey, {
     global: {
       headers: {
         Authorization: `Bearer ${accessToken}`,

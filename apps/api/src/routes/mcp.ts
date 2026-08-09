@@ -33,6 +33,9 @@ function cleanupSessions() {
   }
 }
 
+// Limpeza periódica mesmo sem tráfego em /mcp (evita retenção de memória).
+setInterval(cleanupSessions, 60_000).unref?.();
+
 // Rota única do MCP: aceita POST (JSON-RPC), GET (SSE) e DELETE (encerrar sessão).
 mcpApp.all('/mcp', async (c) => {
   cleanupSessions();

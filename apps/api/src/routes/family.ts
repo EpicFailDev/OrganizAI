@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
-import { getDb } from '../lib/request-context.js';
+import { getDb, getUserId } from '../lib/request-context.js';
 import type { AppEnv } from '../lib/request-context.js';
+import { dbErrorHandler } from '../lib/errors.js';
 import {
   ProfileSchema,
   MyFamilySchema,
@@ -11,32 +12,26 @@ import {
 
 const familyApp = new OpenAPIHono<AppEnv>();
 
+const UUID_PARAM = z.object({ userId: z.string().uuid() });
+
 // GET /v1/profile/:userId
 const getProfileRoute = createRoute({
   method: 'get',
   path: '/v1/profile/{userId}',
   summary: 'Obter Perfil',
   description: 'Retorna o perfil de um usuário (nome, avatar, profissão).',
-  request: {
-    params: z.object({
-      userId: z.string().uuid(),
-    }),
-  },
+  request: { params: UUID_PARAM },
   responses: {
     200: {
-      content: {
-        'application/json': {
-          schema: ProfileSchema,
-        },
-      },
+      content: { 'application/json': { schema: ProfileSchema } },
       description: 'Perfil recuperado com sucesso',
     },
+    404: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Perfil não encontrado',
+    },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao buscar perfil',
     },
   },
@@ -51,24 +46,19 @@ familyApp.openapi(getProfileRoute, async (c) => {
     .select('id, display_name, avatar_url, profession')
     .eq('id', userId)
     .single();
-
-  if (error) {
-    return c.json({ error: error.message }, 500);
-  }
+  if (error) return dbErrorHandler(error);
 
   return c.json(data, 200);
 });
 
-// PATCH /v1/profile/:userId
+// PATCH /v1/profile/:userId (apenas o próprio perfil)
 const updateProfileRoute = createRoute({
   method: 'patch',
   path: '/v1/profile/{userId}',
   summary: 'Atualizar Perfil',
   description: 'Atualiza o nome de exibição e a profissão do próprio perfil.',
   request: {
-    params: z.object({
-      userId: z.string().uuid(),
-    }),
+    params: UUID_PARAM,
     body: {
       content: {
         'application/json': {
@@ -83,19 +73,15 @@ const updateProfileRoute = createRoute({
   },
   responses: {
     200: {
-      content: {
-        'application/json': {
-          schema: ProfileSchema,
-        },
-      },
+      content: { 'application/json': { schema: ProfileSchema } },
       description: 'Perfil atualizado com sucesso',
     },
+    403: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Só é permitido alterar o próprio perfil',
+    },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao atualizar perfil',
     },
   },
@@ -103,19 +89,22 @@ const updateProfileRoute = createRoute({
 
 familyApp.openapi(updateProfileRoute, async (c) => {
   const db = getDb(c);
+  const currentUserId = getUserId(c);
   const { userId } = c.req.valid('param');
+
+  if (userId !== currentUserId) {
+    return c.json({ error: 'Você só pode alterar o próprio perfil' }, 403);
+  }
+
   const body = c.req.valid('json');
 
   const { data, error } = await db
     .from('profiles')
     .update(body)
-    .eq('id', userId)
+    .eq('id', currentUserId)
     .select()
     .single();
-
-  if (error) {
-    return c.json({ error: error.message }, 500);
-  }
+  if (error) return dbErrorHandler(error);
 
   return c.json(data, 200);
 });
@@ -128,27 +117,15 @@ const getMyFamilyRoute = createRoute({
   description: 'Retorna a associação familiar do usuário logado, com os dados do grupo.',
   responses: {
     200: {
-      content: {
-        'application/json': {
-          schema: MyFamilySchema.nullable(),
-        },
-      },
+      content: { 'application/json': { schema: MyFamilySchema.nullable() } },
       description: 'Associação familiar recuperada com sucesso',
     },
     401: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Não autenticado',
     },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao buscar associação familiar',
     },
   },
@@ -156,17 +133,14 @@ const getMyFamilyRoute = createRoute({
 
 familyApp.openapi(getMyFamilyRoute, async (c) => {
   const db = getDb(c);
-  const userId = c.get('userId');
+  const userId = getUserId(c);
 
   const { data, error } = await db
     .from('family_members')
     .select('*, family_groups(*)')
     .eq('profile_id', userId)
     .maybeSingle();
-
-  if (error) {
-    return c.json({ error: error.message }, 500);
-  }
+  if (error) return dbErrorHandler(error);
 
   return c.json(data || null, 200);
 });
@@ -177,26 +151,14 @@ const listMembersRoute = createRoute({
   path: '/v1/family/{familyId}/members',
   summary: 'Listar Membros da Família',
   description: 'Retorna os integrantes do grupo familiar, com seus perfis.',
-  request: {
-    params: z.object({
-      familyId: z.string().uuid(),
-    }),
-  },
+  request: { params: z.object({ familyId: z.string().uuid() }) },
   responses: {
     200: {
-      content: {
-        'application/json': {
-          schema: z.array(FamilyMemberSchema),
-        },
-      },
+      content: { 'application/json': { schema: z.array(FamilyMemberSchema) } },
       description: 'Membros recuperados com sucesso',
     },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao buscar membros',
     },
   },
@@ -211,10 +173,7 @@ familyApp.openapi(listMembersRoute, async (c) => {
     .select('*, profiles(display_name, avatar_url)')
     .eq('family_id', familyId)
     .order('joined_at', { ascending: true });
-
-  if (error) {
-    return c.json({ error: error.message }, 500);
-  }
+  if (error) return dbErrorHandler(error);
 
   return c.json(data || [], 200);
 });
@@ -227,30 +186,16 @@ const createFamilyRoute = createRoute({
   description: 'Cria um novo grupo familiar e insere o usuário logado como administrador.',
   request: {
     body: {
-      content: {
-        'application/json': {
-          schema: z.object({
-            name: z.string().min(1),
-          }),
-        },
-      },
+      content: { 'application/json': { schema: z.object({ name: z.string().min(1) }) } },
     },
   },
   responses: {
     201: {
-      content: {
-        'application/json': {
-          schema: z.object({ family_id: z.string().uuid() }),
-        },
-      },
+      content: { 'application/json': { schema: z.object({ family_id: z.string().uuid() }) } },
       description: 'Grupo familiar criado com sucesso',
     },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao criar grupo familiar',
     },
   },
@@ -261,10 +206,7 @@ familyApp.openapi(createFamilyRoute, async (c) => {
   const { name } = c.req.valid('json');
 
   const { data, error } = await db.rpc('create_family', { p_name: name });
-
-  if (error) {
-    return c.json({ error: error.message }, 500);
-  }
+  if (error) return dbErrorHandler(error);
 
   return c.json({ family_id: data }, 201);
 });
@@ -277,30 +219,20 @@ const joinFamilyRoute = createRoute({
   description: 'Ingressa em um grupo familiar existente via código de convite.',
   request: {
     body: {
-      content: {
-        'application/json': {
-          schema: z.object({
-            invite_code: z.string().min(1),
-          }),
-        },
-      },
+      content: { 'application/json': { schema: z.object({ invite_code: z.string().min(1) }) } },
     },
   },
   responses: {
     200: {
-      content: {
-        'application/json': {
-          schema: z.object({ success: z.boolean(), message: z.string() }),
-        },
-      },
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), message: z.string() }) } },
       description: 'Ingresso realizado com sucesso',
     },
+    400: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Código de convite inválido ou usuário já é membro',
+    },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao ingressar no grupo familiar',
     },
   },
@@ -311,10 +243,7 @@ familyApp.openapi(joinFamilyRoute, async (c) => {
   const { invite_code } = c.req.valid('json');
 
   const { error } = await db.rpc('join_family', { p_invite_code: invite_code });
-
-  if (error) {
-    return c.json({ error: error.message }, 500);
-  }
+  if (error) return dbErrorHandler(error);
 
   return c.json({ success: true, message: 'Ingresso realizado com sucesso' }, 200);
 });
@@ -326,26 +255,15 @@ const leaveFamilyRoute = createRoute({
   summary: 'Sair do Grupo Familiar',
   description: 'Remove um membro do grupo familiar (sair do grupo).',
   request: {
-    params: z.object({
-      familyId: z.string().uuid(),
-      profileId: z.string().uuid(),
-    }),
+    params: z.object({ familyId: z.string().uuid(), profileId: z.string().uuid() }),
   },
   responses: {
     200: {
-      content: {
-        'application/json': {
-          schema: z.object({ success: z.boolean(), message: z.string() }),
-        },
-      },
+      content: { 'application/json': { schema: z.object({ success: z.boolean(), message: z.string() }) } },
       description: 'Membro removido com sucesso',
     },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao remover membro',
     },
   },
@@ -360,10 +278,7 @@ familyApp.openapi(leaveFamilyRoute, async (c) => {
     .delete()
     .eq('family_id', familyId)
     .eq('profile_id', profileId);
-
-  if (error) {
-    return c.json({ error: error.message }, 500);
-  }
+  if (error) return dbErrorHandler(error);
 
   return c.json({ success: true, message: 'Membro removido do grupo' }, 200);
 });
@@ -374,26 +289,14 @@ const getFamilyRoute = createRoute({
   path: '/v1/family/{familyId}',
   summary: 'Obter Grupo Familiar',
   description: 'Retorna os dados do grupo familiar (nome, código de convite).',
-  request: {
-    params: z.object({
-      familyId: z.string().uuid(),
-    }),
-  },
+  request: { params: z.object({ familyId: z.string().uuid() }) },
   responses: {
     200: {
-      content: {
-        'application/json': {
-          schema: FamilyGroupSchema,
-        },
-      },
+      content: { 'application/json': { schema: FamilyGroupSchema } },
       description: 'Grupo familiar recuperado com sucesso',
     },
     500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema,
-        },
-      },
+      content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao buscar grupo familiar',
     },
   },
@@ -403,15 +306,8 @@ familyApp.openapi(getFamilyRoute, async (c) => {
   const db = getDb(c);
   const { familyId } = c.req.valid('param');
 
-  const { data, error } = await db
-    .from('family_groups')
-    .select('*')
-    .eq('id', familyId)
-    .single();
-
-  if (error) {
-    return c.json({ error: error.message }, 500);
-  }
+  const { data, error } = await db.from('family_groups').select('*').eq('id', familyId).single();
+  if (error) return dbErrorHandler(error);
 
   return c.json(data, 200);
 });

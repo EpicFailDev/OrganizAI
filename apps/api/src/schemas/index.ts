@@ -5,8 +5,25 @@ import { z } from '@hono/zod-openapi';
 // ----------------------------------------------------
 export const ErrorResponseSchema = z.object({
   error: z.string().openapi({ example: 'Recurso não encontrado ou erro de autenticação' }),
-  details: z.any().optional(),
 }).openapi('ErrorResponse');
+
+// Refs para colunas embutidas (joins) — tipam as listagens sem usar z.any().
+export const CategoryRefSchema = z.object({
+  name: z.string(),
+  color: z.string().nullable().optional(),
+}).nullable().optional();
+
+export const SubcategoryRefSchema = z.object({
+  name: z.string(),
+}).nullable().optional();
+
+export const ProfileRefSchema = z.object({
+  display_name: z.string(),
+}).nullable().optional();
+
+export const ProductRefSchema = z.object({
+  name: z.string(),
+}).nullable().optional();
 
 // ----------------------------------------------------
 // Transação (Despesa / Receita)
@@ -41,7 +58,6 @@ export const CreateTransactionSchema = z.object({
   subcategory_id: z.string().uuid().nullable().optional(),
   date: z.string().openapi({ example: '2026-08-08' }),
   time: z.string().nullable().optional().openapi({ example: '14:30:00' }),
-  created_by: z.string().uuid().openapi({ example: 'a1b2c3d4-0000-0000-0000-000000000002' }),
   attachment_url: z.string().nullable().optional(),
 }).openapi('CreateTransaction');
 
@@ -56,6 +72,19 @@ export const UpdateTransactionSchema = z.object({
   attachment_url: z.string().nullable().optional(),
 }).openapi('UpdateTransaction');
 
+// Itens de recibo (referenciados pela listagem de transações).
+export const ReceiptItemSchema = z.object({
+  id: z.string().uuid(),
+  transaction_id: z.string().uuid(),
+  family_id: z.string().uuid(),
+  item_name: z.string(),
+  quantity: z.number(),
+  unit_price: z.number(),
+  total_price: z.number(),
+  line_number: z.number().nullable().optional(),
+  created_at: z.string().optional(),
+}).openapi('ReceiptItem');
+
 export const TransactionListItemSchema = z.object({
   id: z.string().uuid(),
   family_id: z.string().uuid(),
@@ -69,10 +98,10 @@ export const TransactionListItemSchema = z.object({
   attachment_url: z.string().nullable().optional(),
   time: z.string().nullable().optional(),
   created_at: z.string().optional(),
-  categories: z.object({ name: z.string(), color: z.string().nullable().optional() }).nullable().optional(),
-  subcategories: z.object({ name: z.string() }).nullable().optional(),
-  profiles: z.object({ display_name: z.string() }).nullable().optional(),
-  receipt_items: z.array(z.any()).optional(),
+  categories: CategoryRefSchema,
+  subcategories: SubcategoryRefSchema,
+  profiles: ProfileRefSchema,
+  receipt_items: z.array(ReceiptItemSchema).optional(),
 }).openapi('TransactionListItem');
 
 // ----------------------------------------------------
@@ -136,7 +165,10 @@ export const FamilyMemberSchema = z.object({
   profile_id: z.string().uuid(),
   role: z.string(),
   joined_at: z.string(),
-  profiles: z.any().optional(),
+  profiles: z.object({
+    display_name: z.string(),
+    avatar_url: z.string().nullable().optional(),
+  }).nullable().optional(),
 }).openapi('FamilyMember');
 
 export const MyFamilySchema = z.object({
@@ -157,7 +189,7 @@ export const BudgetSchema = z.object({
   limit_amount: z.number().openapi({ example: 1500.0 }),
   period: z.string().optional().default('monthly'),
   created_at: z.string().optional(),
-  categories: z.any().optional(),
+  categories: CategoryRefSchema,
 }).openapi('Budget');
 
 export const CreateBudgetSchema = z.object({
@@ -213,7 +245,7 @@ export const PlanningItemSchema = z.object({
   status: z.string().optional(),
   created_by: z.string().uuid().optional(),
   created_at: z.string().optional(),
-  categories: z.any().optional(),
+  categories: CategoryRefSchema,
 }).openapi('PlanningItem');
 
 export const CreatePlanningItemSchema = z.object({
@@ -225,7 +257,6 @@ export const CreatePlanningItemSchema = z.object({
   expected_date: z.string(),
   recurring: z.boolean().optional().default(false),
   recurring_pattern: z.string().nullable().optional(),
-  created_by: z.string().uuid(),
 }).openapi('CreatePlanningItem');
 
 export const UpdatePlanningItemSchema = z.object({
@@ -279,7 +310,6 @@ export const PricingRecipeSchema = z.object({
 export const CreatePricingRecipeSchema = z.object({
   family_id: z.string().uuid(),
   name: z.string().min(1),
-  created_by: z.string().uuid(),
   yield_quantity: z.number().optional().default(10),
   packaging_cost: z.number().optional().default(0),
 }).openapi('CreatePricingRecipe');
@@ -358,7 +388,7 @@ export const SaleSchema = z.object({
   notes: z.string().nullable().optional(),
   created_by: z.string().uuid().nullable().optional(),
   created_at: z.string().optional(),
-  products: z.any().optional(),
+  products: ProductRefSchema,
 }).openapi('Sale');
 
 export const CreateSaleSchema = z.object({
@@ -372,24 +402,24 @@ export const CreateSaleSchema = z.object({
   sale_date: z.string(),
   sale_time: z.string().nullable().optional(),
   customer_name: z.string().nullable().optional(),
-  created_by: z.string().uuid(),
 }).openapi('CreateSale');
+
+export const UpdateSaleSchema = z.object({
+  product_id: z.string().uuid().nullable().optional(),
+  quantity: z.number().positive().optional(),
+  unit_price: z.number().optional(),
+  total_price: z.number().optional(),
+  cost_price: z.number().nullable().optional(),
+  profit: z.number().nullable().optional(),
+  sale_date: z.string().optional(),
+  sale_time: z.string().nullable().optional(),
+  customer_name: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+}).openapi('UpdateSale');
 
 // ----------------------------------------------------
 // Itens de Recibo (receipt_items)
 // ----------------------------------------------------
-export const ReceiptItemSchema = z.object({
-  id: z.string().uuid(),
-  transaction_id: z.string().uuid(),
-  family_id: z.string().uuid(),
-  item_name: z.string(),
-  quantity: z.number(),
-  unit_price: z.number(),
-  total_price: z.number(),
-  line_number: z.number().nullable().optional(),
-  created_at: z.string().optional(),
-}).openapi('ReceiptItem');
-
 export const CreateReceiptItemSchema = z.object({
   transaction_id: z.string().uuid(),
   family_id: z.string().uuid(),

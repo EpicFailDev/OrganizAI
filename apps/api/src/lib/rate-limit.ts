@@ -1,17 +1,22 @@
 import type { MiddlewareHandler } from 'hono';
+import { getConnInfo } from '@hono/node-server/conninfo';
+import { config } from '../config.js';
 
 /**
- * Rate limiter simples em memória (fixed window) por IP.
+ * Rate limiter em memória (fixed window) por IP.
  *
  * Apropriado para um servidor single-instance com volume doméstico/familiar.
- * Usa X-Forwarded-For (preenchido pelo nginx/proxy reverso) para obter o IP
- * real do cliente; sem proxy, usa o peer do socket.
+ * Usa `X-Forwarded-For` (preenchido pelo proxy reverso) com fallback para o
+ * endereço do socket, evitando que todos os clientes sem proxy compartilhem o
+ * mesmo bucket.
  */
-export function rateLimit(options: { windowMs: number; max: number }): MiddlewareHandler {
+export function rateLimit(
+  options: { windowMs: number; max: number } = config.rateLimit
+): MiddlewareHandler {
   const { windowMs, max } = options;
   const hits = new Map<string, { count: number; resetAt: number }>();
 
-  // Evita crescimento infinito do mapa: limpeza periódica simples.
+  // Limpeza periódica para evitar crescimento infinito do mapa.
   const INTERVAL_MS = 60_000;
   setInterval(() => {
     const now = Date.now();
@@ -21,8 +26,9 @@ export function rateLimit(options: { windowMs: number; max: number }): Middlewar
   }, INTERVAL_MS).unref?.();
 
   return async (c, next) => {
-    const fwd = c.req.header('x-forwarded-for');
-    const ip = fwd?.split(',')[0]?.trim() || 'unknown';
+    const forwarded = c.req.header('x-forwarded-for');
+    const peer = getConnInfo(c).remote.address;
+    const ip = forwarded?.split(',')[0]?.trim() || peer || 'unknown';
     const now = Date.now();
 
     const entry = hits.get(ip);

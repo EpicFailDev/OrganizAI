@@ -1,7 +1,13 @@
+import 'dotenv/config';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { serve } from '@hono/node-server';
 import { apiReference } from '@scalar/hono-api-reference';
-import dotenv from 'dotenv';
+
+import { config } from './config.js';
+import { AppError } from './lib/errors.js';
+import { supabase, createUserClient } from './lib/supabase.js';
+import { rateLimit } from './lib/rate-limit.js';
+import type { AppEnv } from './lib/request-context.js';
 
 import healthApp from './routes/health.js';
 import transactionsApp from './routes/transactions.js';
@@ -23,31 +29,24 @@ import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
-import { supabase, createUserClient } from './lib/supabase.js';
-import { rateLimit } from './lib/rate-limit.js';
-import type { AppEnv } from './lib/request-context.js';
-
-dotenv.config();
 
 const app = new OpenAPIHono<AppEnv>();
 
-// Log de requisições + headers de segurança padrão
+// Middlewares globais: log, headers de segurança, limite de corpo e CORS.
 app.use('*', logger());
 app.use('*', secureHeaders());
-app.use('*', bodyLimit({
-  maxSize: 1024 * 1024, // 1 MB
-  onError: (c) => c.json({ error: 'Corpo da requisição excede o limite de 1 MB' }, 413),
-}));
+app.use(
+  '*',
+  bodyLimit({
+    maxSize: config.bodyLimitBytes,
+    onError: (c) =>
+      c.json({ error: `Corpo da requisição excede o limite de ${config.bodyLimitBytes / 1024 / 1024} MB` }, 413),
+  })
+);
+app.use('*', cors(config.cors));
 
-// Middleware CORS nativo do Hono
-app.use('*', cors({
-  origin: '*',
-  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-}));
-
-// Rate limit básico em memória (por IP) para as rotas de API /v1/*
-app.use('/v1/*', rateLimit({ windowMs: 60_000, max: 120 }));
+// Rate limit em memória (por IP) para as rotas de API /v1/*.
+app.use('/v1/*', rateLimit(config.rateLimit));
 
 /**
  * Middleware de autenticação: exige um JWT válido do Supabase Auth em todas
@@ -84,7 +83,7 @@ app.use('*', (c, next) => {
   return next();
 });
 
-// Acopla as sub-aplicações com documentação Zod OpenAPI
+// Acopla as sub-aplicações com documentação Zod OpenAPI.
 app.route('/', healthApp);
 app.route('/', transactionsApp);
 app.route('/', categoriesApp);
@@ -101,13 +100,18 @@ app.route('/', receiptItemsApp);
 app.route('/', llmsApp);
 app.route('/', mcpApp);
 
-// Handler global de erros não capturados
+// Handler global de erros: converte AppError em resposta HTTP e evita vazar
+// detalhes internos (stack traces, mensagens do Postgres) para o cliente.
 app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({ error: err.message }, err.statusCode);
+  }
+
   console.error('Erro não tratado:', err);
   return c.json({ error: 'Erro interno do servidor' }, 500);
 });
 
-// 404 JSON padronizado
+// 404 JSON padronizado.
 app.notFound((c) => c.json({ error: 'Rota não encontrada' }, 404));
 
 // ----------------------------------------------------
@@ -125,23 +129,10 @@ app.doc('/doc/json', {
 - **Documentação de IA (/llms.txt)**: Guia em Markdown limpo para LLMs.
 - **Servidor MCP**: Integrado via STDIO e HTTP (Streamable HTTP em \`/mcp\`) para execução autônoma de ferramentas por Agentes de IA.`,
   },
-  servers: [
-    {
-      url: 'https://doc.organizai.duckdns.org',
-      description: 'Subdomínio Oficial de Documentação & API',
-    },
-    {
-      url: 'https://organizai.duckdns.org/api',
-      description: 'Proxy da API Principal',
-    },
-    {
-      url: 'http://localhost:3000',
-      description: 'Ambiente de Desenvolvimento Local',
-    },
-  ],
+  servers: config.docServers,
 });
 
-// Configuração do servidor MCP para descoberta por clientes
+// Configuração do servidor MCP para descoberta por clientes.
 app.get('/mcp.json', (c) => {
   return c.json({
     name: 'OrganizAI MCP',
@@ -154,7 +145,7 @@ app.get('/mcp.json', (c) => {
   });
 });
 
-// Alias estático para /openapi.json
+// Alias estático para /openapi.json.
 app.get('/openapi.json', (c) => c.redirect('/doc/json'));
 
 // ----------------------------------------------------
@@ -173,7 +164,7 @@ app.get(
 
 app.get('/docs', (c) => c.redirect('/doc'));
 
-// Redirecionamento da raiz da doc para /doc se acessado isoladamente
+// Redirecionamento da raiz da doc para /doc se acessado isoladamente.
 app.get('/', (c) => {
   return c.html(`
     <!DOCTYPE html>
@@ -202,13 +193,11 @@ app.get('/', (c) => {
   `);
 });
 
-const port = Number(process.env.PORT || 3000);
-
-console.log(`🚀 Servidor Backend OrganizAI escutando na porta ${port}...`);
-console.log(`📄 Documentação Scalar disponível em http://localhost:${port}/doc`);
-console.log(`🤖 Endpoint LLMs disponível em http://localhost:${port}/llms.txt`);
-
 serve({
   fetch: app.fetch,
-  port,
+  port: config.port,
 });
+
+console.log(`🚀 Servidor Backend OrganizAI escutando na porta ${config.port}...`);
+console.log(`📄 Documentação Scalar disponível em http://localhost:${config.port}/doc`);
+console.log(`🤖 Endpoint LLMs disponível em http://localhost:${config.port}/llms.txt`);
