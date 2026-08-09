@@ -2,7 +2,7 @@ import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
 import { getDb, getUserId } from '../lib/request-context.js';
 import type { AppEnv } from '../lib/request-context.js';
 import { dbErrorHandler, isPostgrestError } from '../lib/errors.js';
-import { computeFinancialSummary } from '../services/financial-summary.js';
+import { computeFinancialSummary, emptySummary } from '../services/financial-summary.js';
 import { FinancialAnalyticsSummarySchema, ErrorResponseSchema } from '../schemas/index.js';
 
 const analyticsApp = new OpenAPIHono<AppEnv>();
@@ -39,17 +39,7 @@ analyticsApp.openapi(summaryRoute, async (c) => {
 
   const familyId = membership?.family_id;
   if (!familyId) {
-    return c.json(
-      {
-        total_expenses: 0,
-        total_income: 0,
-        net_balance: 0,
-        top_category: null,
-        transactions_count: 0,
-        family_members_count: 0,
-      },
-      200
-    );
+    return c.json({ ...emptySummary(), family_members_count: 0 }, 200);
   }
 
   let summary;

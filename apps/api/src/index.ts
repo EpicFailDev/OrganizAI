@@ -27,14 +27,17 @@ import mcpApp from './routes/mcp.js';
 
 import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
+import { compress } from 'hono/compress';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 
 const app = new OpenAPIHono<AppEnv>();
 
-// Middlewares globais: log, headers de segurança, limite de corpo e CORS.
+// Middlewares globais: log, headers de segurança, compressão gzip, limite de
+// corpo e CORS.
 app.use('*', logger());
 app.use('*', secureHeaders());
+app.use('*', compress());
 app.use(
   '*',
   bodyLimit({

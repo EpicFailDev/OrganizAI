@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { summarizeTransactions, type TransactionRow } from './financial-summary.js';
+import { describe, expect, it, vi } from 'vitest';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  computeFinancialSummary,
+  emptySummary,
+  summarizeTransactions,
+  type TransactionRow,
+} from './financial-summary.js';
 
 function row(partial: Partial<TransactionRow> & Pick<TransactionRow, 'type' | 'amount'>): TransactionRow {
   return { categories: null, ...partial };
@@ -72,5 +78,72 @@ describe('summarizeTransactions', () => {
     const result = summarizeTransactions([row({ type: 'income', amount: 500 })]);
 
     expect(result.top_category).toBeNull();
+  });
+});
+
+describe('computeFinancialSummary (via RPC)', () => {
+  function mockDb(rpcResult: unknown) {
+    return {
+      rpc: vi.fn().mockResolvedValue(rpcResult),
+    } as unknown as SupabaseClient;
+  }
+
+  it('mapeia o retorno da RPC para o FinancialSummary', async () => {
+    const db = mockDb({
+      data: [
+        {
+          total_income: 300,
+          total_expense: 150,
+          balance: 150,
+          transaction_count: 3,
+          top_category: 'Lazer',
+        },
+      ],
+      error: null,
+    });
+
+    await expect(computeFinancialSummary(db, 'family-1')).resolves.toEqual({
+      total_expenses: 150,
+      total_income: 300,
+      net_balance: 150,
+      top_category: 'Lazer',
+      transactions_count: 3,
+    });
+  });
+
+  it('retorna resumo zerado quando a família não tem transações', async () => {
+    const db = mockDb({ data: null, error: null });
+
+    await expect(computeFinancialSummary(db, 'family-1')).resolves.toEqual(emptySummary());
+  });
+
+  it('propaga erros da RPC diferentes de PGRST202', async () => {
+    const db = mockDb({ data: null, error: { code: '42501', message: 'Acesso negado' } });
+
+    await expect(computeFinancialSummary(db, 'family-1')).rejects.toEqual({
+      code: '42501',
+      message: 'Acesso negado',
+    });
+  });
+
+  it('cai para agregação em memória quando a RPC não existe (PGRST202)', async () => {
+    const from = { select: () => from, eq: () => from };
+    const db = {
+      rpc: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'not found' } }),
+      from: vi.fn().mockReturnValue({
+        ...from,
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({
+            data: [{ type: 'expense', amount: 40, categories: { name: 'Mercado' } }],
+            error: null,
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    const summary = await computeFinancialSummary(db, 'family-1');
+    expect(summary.total_expenses).toBe(40);
+    expect(summary.top_category).toBe('Mercado');
+    expect(summary.transactions_count).toBe(1);
   });
 });
