@@ -28,3 +28,13 @@ export async function cachedQuery<T>(
   }
   return result;
 }
+
+/** Remove uma entrada do cache para forçar refetch em mutações (insert/update/delete). */
+export function invalidateQuery(key: string) {
+  queryCache.delete(key);
+}
+
+/** Limpa todo o cache (ex.: logout). */
+export function clearQueryCache() {
+  queryCache.clear();
+}

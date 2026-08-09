@@ -31,6 +31,14 @@ echo "Por favor, insira as informações de domínio e Supabase:"
 read -r -p "Subdomínio do DuckDNS (ex: organizai-familia): " DUCKDNS_SUBDOMAIN
 DOMAIN="${DUCKDNS_SUBDOMAIN}.duckdns.org"
 
+# Subdomínio dedicado para a documentação da API e MCP (opcional).
+# Deixe em branco para usar apenas /doc no domínio principal.
+read -r -p "Subdomínio da documentação (ex: organizai-doc; vazio = desativar): " DOC_DUCKDNS_SUBDOMAIN
+DOC_DOMAIN=""
+if [ -n "$DOC_DUCKDNS_SUBDOMAIN" ]; then
+  DOC_DOMAIN="${DOC_DUCKDNS_SUBDOMAIN}.duckdns.org"
+fi
+
 read -r -p "Seu e-mail para avisos de expiração do SSL: " SSL_EMAIL
 
 read -r -p "URL do seu Supabase (VITE_SUPABASE_URL): " SUPABASE_URL
@@ -112,6 +120,7 @@ echo "--> 7/8 Criando arquivo .env (permissão 600)..."
 cat > .env <<EOF
 VITE_SUPABASE_URL=$SUPABASE_URL
 VITE_SUPABASE_ANON_KEY=$SUPABASE_KEY
+VITE_API_URL=/api
 EOF
 chmod 600 .env
 if [ -n "${SUDO_USER:-}" ]; then
@@ -137,6 +146,7 @@ server {
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
+    # Frontend Web Dashboard (React/Vite)
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$host;
@@ -144,8 +154,88 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
+
+    # Backend API e Documentação (Hono / OpenAPI / Scalar)
+    location /api/ {
+        rewrite ^/api/(.*)$ /\$1 break;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Endpoints Diretos de Documentação & LLMs
+    location ~ ^/(doc|docs|openapi.json|mcp.json|llms.txt|llms-full.txt) {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Endpoint HTTP do Model Context Protocol (Streamable HTTP)
+    location /mcp {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
 }
 EOF
+
+# Server block opcional para o subdomínio dedicado de documentação
+if [ -n "$DOC_DOMAIN" ]; then
+  DOC_NGINX_CONF="/etc/nginx/sites-available/organizai-doc"
+
+  cat > "$DOC_NGINX_CONF" <<EOF
+server {
+    listen 80;
+    server_name $DOC_DOMAIN;
+    server_tokens off;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Documentação (Scalar) e especificação OpenAPI
+    location ~ ^/(doc|docs|openapi.json|mcp.json|llms.txt|llms-full.txt)$ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Raiz do subdomínio redireciona para a documentação interativa
+    location = / {
+        return 302 /doc;
+    }
+
+    # Endpoint HTTP do Model Context Protocol (Streamable HTTP)
+    location /mcp {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}
+EOF
+
+  ln -sf "$DOC_NGINX_CONF" /etc/nginx/sites-enabled/
+fi
 
 # Cria o link simbólico para ativar o site e remove a página padrão do Nginx
 ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/
@@ -153,10 +243,13 @@ rm -f /etc/nginx/sites-enabled/default || true
 nginx -t
 systemctl reload nginx
 
-# 12. Obtém o certificado SSL gratuitamente via Let's Encrypt (com redirecionamento HTTPS e HSTS)
+# 12. Obtém os certificados SSL gratuitamente via Let's Encrypt
 echo ""
-echo "--> Finalizando: gerando o certificado SSL seguro (HTTPS)..."
+echo "--> Finalizando: gerando os certificados SSL seguros (HTTPS)..."
 certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect --hsts
+if [ -n "$DOC_DOMAIN" ]; then
+  certbot --nginx -d "$DOC_DOMAIN" --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect --hsts
+fi
 systemctl reload nginx
 
 echo ""
@@ -165,6 +258,9 @@ echo " CONFIGURAÇÃO CONCLUÍDA COM SUCESSO!"
 echo "=========================================================="
 echo "Seu sistema OrganizAI está online e protegido por SSL em:"
 echo "  https://$DOMAIN"
+if [ -n "$DOC_DOMAIN" ]; then
+  echo "  Documentação/API/MCP: https://$DOC_DOMAIN"
+fi
 echo ""
 echo "Medidas de hardening aplicadas:"
 echo "  - Docker Engine + Compose v2 (repositório oficial)"
@@ -175,4 +271,5 @@ echo "  - Swap de 1GB para a instância Free Tier"
 echo "  - Atualizações automáticas de segurança"
 echo "  - .env com permissão 600"
 echo "  - HTTPS com redirecionamento e HSTS (Let's Encrypt)"
+echo "  - API REST documentada (OpenAPI + Scalar) e servidor MCP (Streamable HTTP)"
 echo "=========================================================="

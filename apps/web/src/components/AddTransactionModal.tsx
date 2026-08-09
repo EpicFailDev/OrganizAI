@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
+import { parseNumber } from '../utils';
 import {
   X, Upload, Loader2, Calendar, Fuel, ShoppingCart, Cookie, Coffee, Car, Sparkles, MapPin, ClipboardList,
 } from 'lucide-react';
@@ -116,10 +118,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     }
     const fetchSubcategories = async () => {
       try {
-        const { data, error } = await supabase
-          .from('subcategories')
-          .select('*')
-          .eq('category_id', categoryId);
+        const { data, error } = await api.listSubcategories(categoryId);
         if (error) throw error;
         setSubcategories(data || []);
       } catch (err: any) {
@@ -339,7 +338,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       setErrorMsg('Selecione uma categoria para prosseguir.');
       return;
     }
-    if (!amount || isNaN(Number(amount.replace(',', '.'))) || Number(amount.replace(',', '.')) <= 0) {
+    const cleanAmount = Math.abs(parseNumber(amount));
+    if (!amount || cleanAmount <= 0) {
       setErrorMsg('Insira um valor maior que zero.');
       return;
     }
@@ -362,30 +362,25 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         setUploading(false);
       }
 
-      const cleanAmount = Number(amount.replace(',', '.'));
       const finalDescription = description.trim() || generatedDescription || 'Lançamento';
-      const { data: inserted, error: insertError } = await supabase
-        .from('transactions')
-        .insert({
-          family_id: familyId,
-          date,
-          description: finalDescription,
-          category_id: categoryId,
-          subcategory_id: subcategoryId || null,
-          type,
-          amount: cleanAmount,
-          created_by: userId,
-          attachment_url: attachmentUrl || null
-        })
-        .select('id')
-        .single();
+      const { data: inserted, error: insertError } = await api.createTransaction({
+        family_id: familyId,
+        date,
+        description: finalDescription,
+        category_id: categoryId,
+        subcategory_id: subcategoryId || null,
+        type,
+        amount: cleanAmount,
+        created_by: userId,
+        attachment_url: attachmentUrl || null
+      });
 
       if (insertError) throw insertError;
 
       // Salva itens inteligentes (combustível / salgados / uber) como receipt_items
-      const receiptItems = buildReceiptItems(inserted.id);
+      const receiptItems = buildReceiptItems(inserted?.id || '');
       if (receiptItems.length > 0) {
-        const { error: itemsError } = await supabase.from('receipt_items').insert(receiptItems);
+        const { error: itemsError } = await api.createReceiptItems(receiptItems);
         if (itemsError) throw itemsError;
       }
 

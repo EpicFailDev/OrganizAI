@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
 import { X, Edit3, Trash2, Save, Loader2, ArrowLeft } from 'lucide-react';
-import { formatCurrency } from '../utils';
+import { formatCurrency, parseNumber } from '../utils';
 import { useSignedAttachmentUrl } from '../lib/storage';
 
 interface Transaction {
@@ -95,7 +95,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const [description, setDescription] = useState(transaction.description || '');
   const [categoryId, setCategoryId] = useState(transaction.category_id || '');
   const [subcategoryId, setSubcategoryId] = useState(transaction.subcategory_id || '');
-  const [amount, setAmount] = useState(String(transaction.amount ?? 0).replace('.', ','));
+  const [amount, setAmount] = useState(String(Math.abs(parseNumber(transaction.amount))).replace('.', ','));
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
 
   const attachmentUrl = useSignedAttachmentUrl(transaction.attachment_url);
@@ -111,10 +111,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       return;
     }
     const fetchSubcategories = async () => {
-      const { data } = await supabase
-        .from('subcategories')
-        .select('*')
-        .eq('category_id', categoryId);
+      const { data } = await api.listSubcategories(categoryId);
       setSubcategories(data || []);
     };
     fetchSubcategories();
@@ -134,15 +131,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     setDescription(transaction.description || '');
     setCategoryId(transaction.category_id || '');
     setSubcategoryId(transaction.subcategory_id || '');
-    setAmount(String(transaction.amount ?? 0).replace('.', ','));
+    setAmount(String(Math.abs(parseNumber(transaction.amount))).replace('.', ','));
     setErrorMsg('');
     setIsEditing(false);
   };
 
   const handleSave = async () => {
     if (!categoryId) { setErrorMsg('Selecione uma categoria.'); return; }
-    const cleanAmount = Number(amount.replace(',', '.'));
-    if (!amount || isNaN(cleanAmount) || cleanAmount <= 0) { setErrorMsg('Valor inválido.'); return; }
+    const cleanAmount = Math.abs(parseNumber(amount));
+    if (!amount || cleanAmount <= 0) { setErrorMsg('Valor inválido.'); return; }
     if (!description.trim()) { setErrorMsg('Descrição obrigatória.'); return; }
 
     setLoading(true);
@@ -323,7 +320,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                   color: type === 'income' ? '#30d158' : '#ff453a',
                   letterSpacing: '-0.02em',
                 }}>
-                  {type === 'income' ? '+' : '-'} {formatCurrency(Number(transaction.amount))}
+                  {type === 'income' ? '+' : '-'} {formatCurrency(Math.abs(parseNumber(transaction.amount)))}
                 </div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#fff', marginTop: '0.25rem' }}>
                   {transaction.description}

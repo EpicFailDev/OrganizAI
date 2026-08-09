@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { parseNumber } from '../utils';
 import {
   Car,
   DollarSign,
@@ -82,7 +83,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
     let costs = 0;
 
     uberTransactions.forEach((t) => {
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       if (t.type === 'income') grossIncome += amt;
       else costs += amt;
     });
@@ -119,7 +120,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
     uberTransactions.forEach((t) => {
       const day = new Date(t.date).getDate();
       const idx = Math.min(Math.floor((day - 1) / 5), data.length - 1);
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       const desc = t.description.toLowerCase();
 
       if (t.type === 'income') {
@@ -147,7 +148,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
     uberTransactions.forEach((t) => {
       if (t.type !== 'income') return;
       const desc = t.description.toLowerCase();
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       if (desc.includes('99')) ninetyNine += amt;
       else if (desc.includes('uber')) uber += amt;
       else other += amt;
@@ -177,7 +178,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
     uberTransactions.forEach((t) => {
       if (t.type !== 'expense') return;
       const cat = (t.categories?.name || '').toLowerCase();
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
 
       if (cat.includes('combust') || cat.includes('fuel') || cat.includes('gasolina')) map['Combustível'] += amt;
       else if (cat.includes('aluguel') || cat.includes('rent')) map['Aluguel do Carro'] += amt;
@@ -217,7 +218,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
     uberTransactions.forEach((t) => {
       if (t.type !== 'income') return;
       const dow = (new Date(t.date).getDay() + 6) % 7; // Mon=0
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       const desc = t.description.toLowerCase();
       if (desc.includes('99')) ninetyByDay[dow] += amt;
       else uberByDay[dow] += amt;
@@ -240,7 +241,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
     uberTransactions.forEach((t) => {
       if (t.type !== 'income') return;
       const desc = t.description.toLowerCase();
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       if (desc.includes('99')) {
         ninetyIncome += amt;
         ninetyTrips++;

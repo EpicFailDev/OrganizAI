@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
+import { parseNumber } from '../utils';
 import {
   Calendar, ChevronLeft, ChevronRight, Plus, X,
   ArrowUpRight, ArrowDownRight, Clock,
@@ -73,8 +74,9 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
       const d = new Date(t.date);
       if (d.getMonth() === month && d.getFullYear() === year) {
         count++;
-        if (t.type === 'income') income += Number(t.amount);
-        else expense += Number(t.amount);
+        const amt = Math.abs(parseNumber(t.amount));
+        if (t.type === 'income') income += amt;
+        else expense += amt;
       }
     });
     return { income, expense, balance: income - expense, count };
@@ -92,16 +94,17 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
   const goToday = () => { setCurrentDate(new Date()); setSelectedDay(new Date()); };
 
   const handleAdd = async () => {
-    if (!newDesc || !newAmount || !familyId) return;
+    const parsedAmt = Math.abs(parseNumber(newAmount));
+    if (!newDesc || parsedAmt <= 0 || !familyId) return;
     const dateStr = selectedDay
       ? `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`
       : today.toISOString().split('T')[0];
     setSaving(true);
-    const { error } = await supabase.from('transactions').insert({
+    const { error } = await api.createTransaction({
       family_id: familyId,
       description: newDesc,
       type: newType,
-      amount: Number(newAmount),
+      amount: parsedAmt,
       category_id: newCategoryId || categories[0]?.id || '',
       date: dateStr,
       created_by: userId,
@@ -313,7 +316,7 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
                       fontSize: '0.82rem', fontWeight: 800, flexShrink: 0,
                       color: t.type === 'income' ? 'var(--color-income)' : 'var(--color-expense)',
                     }}>
-                      {t.type === 'income' ? '+' : '-'} {fmt(Number(t.amount))}
+                      {t.type === 'income' ? '+' : '-'} {fmt(Math.abs(parseNumber(t.amount)))}
                     </span>
                   </div>
                 ))}
@@ -326,10 +329,10 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Saldo do dia</span>
                   <span style={{
                     fontSize: '0.95rem', fontWeight: 800, fontFamily: 'var(--font-title)',
-                    color: selectedDayTx.reduce((s, t) => s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0) >= 0
+                    color: selectedDayTx.reduce((s, t) => s + (t.type === 'income' ? Math.abs(parseNumber(t.amount)) : -Math.abs(parseNumber(t.amount))), 0) >= 0
                       ? 'var(--color-income)' : 'var(--color-expense)',
                   }}>
-                    {fmt(selectedDayTx.reduce((s, t) => s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)), 0))}
+                    {fmt(selectedDayTx.reduce((s, t) => s + (t.type === 'income' ? Math.abs(parseNumber(t.amount)) : -Math.abs(parseNumber(t.amount))), 0))}
                   </span>
                 </div>
               </div>

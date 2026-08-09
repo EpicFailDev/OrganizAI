@@ -15,7 +15,7 @@ import {
   Tag,
   ListChecks,
 } from 'lucide-react';
-import { formatCurrency } from '../utils';
+import { formatCurrency, parseNumber } from '../utils';
 import { getSignedAttachmentUrl } from '../lib/storage';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { SwipeableRow } from './SwipeableRow';
@@ -179,7 +179,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
     let income = 0;
     let expense = 0;
     filteredTransactions.forEach(t => {
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       if (t.type === 'income') income += amt;
       else expense += amt;
     });
@@ -221,7 +221,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
     let expense = 0;
     filteredTransactions.forEach((t) => {
       if (!selectedIds.has(t.id)) return;
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       if (t.type === 'income') income += amt;
       else expense += amt;
     });
@@ -546,7 +546,7 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                       fontWeight: 700,
                       color: t.type === 'income' ? '#30d158' : 'var(--text-primary)',
                     }}>
-                      {t.type === 'income' ? '+' : '-'} {formatCurrency(Number(t.amount))}
+                      {t.type === 'income' ? '+' : '-'} {formatCurrency(Math.abs(parseNumber(t.amount)))}
                     </span>
                     {t.profiles?.display_name && (
                       <span style={{ fontSize: '0.65rem', color: 'var(--text-quaternary)' }}>

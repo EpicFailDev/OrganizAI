@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { formatCurrency } from '../utils';
+import { formatCurrency, parseNumber } from '../utils';
 import {
   BarChart3, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   Calendar, Download, PieChart as PieIcon,
@@ -40,8 +40,7 @@ interface RelatoriosProps {
   categories: Category[];
 }
 
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+const fmt = (v: number) => formatCurrency(v);
 
 export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories }) => {
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('month');
@@ -64,8 +63,9 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
     let income = 0;
     let expense = 0;
     filteredTx.forEach((t) => {
-      if (t.type === 'income') income += Number(t.amount);
-      else expense += Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
+      if (t.type === 'income') income += amt;
+      else expense += amt;
     });
     return { income, expense, balance: income - expense };
   }, [filteredTx]);
@@ -85,7 +85,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
       const diff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
       if (diff < 0 || diff > 11) return;
       const idx = 11 - diff;
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       if (t.type === 'income') data[idx].Entradas += amt;
       else data[idx].Saídas += amt;
     });
@@ -103,7 +103,8 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
       if (t.type !== 'expense') return;
       const name = t.categories?.name || 'Outros';
       const color = t.categories?.color || '#6b7280';
-      map[name] = { name, value: (map[name]?.value || 0) + Number(t.amount), color };
+      const amt = Math.abs(parseNumber(t.amount));
+      map[name] = { name, value: (map[name]?.value || 0) + amt, color };
     });
     return Object.values(map).sort((a, b) => b.value - a.value);
   }, [filteredTx]);
@@ -117,7 +118,8 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
       if (t.type !== 'income') return;
       const name = t.categories?.name || 'Outros';
       const color = t.categories?.color || '#10b981';
-      map[name] = { name, value: (map[name]?.value || 0) + Number(t.amount), color };
+      const amt = Math.abs(parseNumber(t.amount));
+      map[name] = { name, value: (map[name]?.value || 0) + amt, color };
     });
     return Object.values(map).sort((a, b) => b.value - a.value);
   }, [filteredTx]);
@@ -133,7 +135,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
     const map: Record<string, number> = {};
     filteredTx.forEach((t) => {
       const key = String(t.date).slice(0, 10);
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       map[key] = (map[key] || 0) + (t.type === 'income' ? amt : -amt);
     });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);

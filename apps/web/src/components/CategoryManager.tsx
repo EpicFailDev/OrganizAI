@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
 import { Tags, Plus, Trash2, FolderPlus, Tag, X } from 'lucide-react';
 
 interface Category {
@@ -41,9 +41,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   // Fetch subcategories for listing
   const fetchAllSubcategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from('subcategories')
-        .select('*');
+      const { data, error } = await api.listSubcategories();
 
       if (error) throw error;
       setSubcategories(data || []);
@@ -68,15 +66,13 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
     setErrorMsg('');
 
     try {
-      const { error } = await supabase
-        .from('categories')
-        .insert({
-          name: newCatName,
-          type: newCatType,
-          color: newCatColor,
-          family_id: familyId,
-          icon: newCatType === 'income' ? 'payments' : 'shopping_bag'
-        });
+      const { error } = await api.createCategory({
+        name: newCatName,
+        type: newCatType,
+        color: newCatColor,
+        family_id: familyId,
+        icon: newCatType === 'income' ? 'payments' : 'shopping_bag'
+      });
 
       if (error) throw error;
       
@@ -97,12 +93,10 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
     setErrorMsg('');
 
     try {
-      const { error } = await supabase
-        .from('subcategories')
-        .insert({
-          category_id: selectedCategoryId,
-          name: newSubName
-        });
+      const { error } = await api.createSubcategory({
+        category_id: selectedCategoryId,
+        name: newSubName
+      });
 
       if (error) throw error;
 
@@ -118,10 +112,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   const handleDeleteCategory = async (id: string) => {
     if (!window.confirm('Excluir esta categoria? Isso também pode excluir os lançamentos vinculados!')) return;
     try {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', id);
+      const { error } = await api.deleteCategory(id);
 
       if (error) throw error;
       await onRefreshCategories();
@@ -133,10 +124,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   const handleDeleteSubcategory = async (id: string) => {
     if (!window.confirm('Excluir esta subcategoria?')) return;
     try {
-      const { error } = await supabase
-        .from('subcategories')
-        .delete()
-        .eq('id', id);
+      const { error } = await api.deleteSubcategory(id);
 
       if (error) throw error;
       await fetchAllSubcategories();

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
 import { Users, Plus, Shield, Clipboard, Check, UserMinus } from 'lucide-react';
 
 interface Profile {
-  id: string;
-  display_name: string;
-  avatar_url?: string;
+  display_name: string | null;
+  avatar_url?: string | null;
 }
 
 interface Member {
@@ -13,7 +12,7 @@ interface Member {
   profile_id: string;
   role: string;
   joined_at: string;
-  profiles?: Profile;
+  profiles?: Profile | null;
 }
 
 interface FamilySettingsProps {
@@ -41,10 +40,7 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
   const fetchMembers = async () => {
     if (!familyId) return;
     try {
-      const { data, error } = await supabase
-        .from('family_members')
-        .select('*, profiles(*)')
-        .eq('family_id', familyId);
+      const { data, error } = await api.getFamilyMembers(familyId);
 
       if (error) throw error;
       setMembers(data || []);
@@ -66,7 +62,7 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
     setSuccessMsg('');
 
     try {
-      const { error } = await supabase.rpc('create_family', { p_name: newFamilyName });
+      const { error } = await api.createFamily(newFamilyName);
       if (error) throw error;
 
       setSuccessMsg('Grupo familiar criado com sucesso!');
@@ -87,7 +83,7 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
     setSuccessMsg('');
 
     try {
-      const { error } = await supabase.rpc('join_family', { p_invite_code: joinFamilyId });
+      const { error } = await api.joinFamily(joinFamilyId);
       if (error) throw error;
 
       setSuccessMsg('Você ingressou no grupo familiar com sucesso!');
@@ -111,11 +107,7 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
     
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('family_members')
-        .delete()
-        .eq('family_id', familyId)
-        .eq('profile_id', userId);
+      const { error } = await api.leaveFamily(familyId!, userId);
 
       if (error) throw error;
       

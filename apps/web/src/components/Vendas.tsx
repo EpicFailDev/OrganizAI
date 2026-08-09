@@ -15,7 +15,8 @@ import {
   Percent,
   Store
 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
+import { parseNumber } from '../utils';
 import { PricingCalculator } from './PricingCalculator';
 import { IngredientsBase } from './IngredientsBase';
 
@@ -31,26 +32,26 @@ interface Transaction {
 interface Product {
   id: string;
   name: string;
-  recipe_id: string | null;
-  selling_price: number | null;
-  cost_price: number | null;
-  unit: string;
-  active: boolean;
+  recipe_id?: string | null;
+  selling_price?: number | null;
+  cost_price?: number | null;
+  unit?: string | null;
+  active?: boolean | null;
 }
 
 interface Sale {
   id: string;
-  product_id: string;
+  product_id?: string | null;
   quantity: number;
   unit_price: number;
   total_price: number;
-  cost_price: number | null;
-  profit: number | null;
+  cost_price?: number | null;
+  profit?: number | null;
   sale_date: string;
-  sale_time: string | null;
-  customer_name: string | null;
-  notes: string | null;
-  products?: { name: string };
+  sale_time?: string | null;
+  customer_name?: string | null;
+  notes?: string | null;
+  products?: { name: string } | null;
 }
 
 interface VendasProps {
@@ -92,11 +93,7 @@ export const Vendas: React.FC<VendasProps> = ({
   // Fetch products
   const fetchProducts = useCallback(async () => {
     if (!familyId) return;
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('family_id', familyId)
-      .order('name');
+    const { data, error } = await api.listProducts(familyId);
 
     if (!error && data) setProducts(data);
   }, [familyId]);
@@ -106,14 +103,20 @@ export const Vendas: React.FC<VendasProps> = ({
     if (!familyId) return;
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from('sales')
-      .select('*, products(name)')
-      .eq('family_id', familyId)
-      .order('sale_date', { ascending: false })
-      .limit(100);
+    // Paginado: o PostgREST corta em max_rows (default 1000)
+    const PAGE_SIZE = 1000;
+    let all: Sale[] = [];
+    let from = 0;
+    for (;;) {
+      const { data, error } = await api.listSales({ family_id: familyId, from, limit: PAGE_SIZE });
 
-    if (!error && data) setSales(data);
+      if (error) break;
+      all = all.concat(data || []);
+      if (!data || data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+
+    setSales(all);
     setLoading(false);
   }, [familyId]);
 
@@ -127,14 +130,14 @@ export const Vendas: React.FC<VendasProps> = ({
     if (!newProduct.name) return;
     setSaving(true);
 
-    const { error } = await supabase
-      .from('products')
-      .insert({
-        family_id: familyId,
-        name: newProduct.name,
-        selling_price: parseFloat(newProduct.selling_price) || null,
-        unit: newProduct.unit
-      });
+    const parsedPrice = parseNumber(newProduct.selling_price);
+
+    const { error } = await api.createProduct({
+      family_id: familyId,
+      name: newProduct.name,
+      selling_price: parsedPrice > 0 ? parsedPrice : null,
+      unit: newProduct.unit
+    });
 
     if (!error) {
       setShowProductModal(false);
@@ -156,21 +159,19 @@ export const Vendas: React.FC<VendasProps> = ({
     const costPrice = product?.cost_price || 0;
     const profit = totalPrice - (costPrice * quantity);
 
-    const { error } = await supabase
-      .from('sales')
-      .insert({
-        family_id: familyId,
-        product_id: newSale.product_id,
-        quantity,
-        unit_price: unitPrice,
-        total_price: totalPrice,
-        cost_price: costPrice * quantity,
-        profit,
-        sale_date: new Date().toISOString().split('T')[0],
-        sale_time: new Date().toTimeString().split(' ')[0],
-        customer_name: newSale.customer_name || null,
-        created_by: userId
-      });
+    const { error } = await api.createSale({
+      family_id: familyId,
+      product_id: newSale.product_id,
+      quantity,
+      unit_price: unitPrice,
+      total_price: totalPrice,
+      cost_price: costPrice * quantity,
+      profit,
+      sale_date: new Date().toISOString().split('T')[0],
+      sale_time: new Date().toTimeString().split(' ')[0],
+      customer_name: newSale.customer_name || null,
+      created_by: userId
+    });
 
     if (!error) {
       setShowSaleModal(false);
@@ -204,6 +205,7 @@ export const Vendas: React.FC<VendasProps> = ({
 
     sales.forEach(s => {
       const name = s.products?.name || 'Produto';
+      if (!s.product_id) return;
       if (!productMap[s.product_id]) {
         productMap[s.product_id] = { name, revenue: 0, count: 0 };
       }

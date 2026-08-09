@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
-import { supabase, cachedQuery } from './supabaseClient';
+import { supabase, cachedQuery, invalidateQuery } from './supabaseClient';
+import { api } from './lib/apiClient';
 import { ProfileSelector } from './components/ProfileSelector';
 import { Sidebar } from './components/Sidebar';
 import { MobileTabBar } from './components/MobileTabBar';
@@ -137,17 +138,13 @@ function App() {
     try {
       const { data: profData, error: profError } = await cachedQuery<Profile>(
         `profile:${userId}`,
-        () => supabase.from('profiles').select('id, display_name, avatar_url, profession').eq('id', userId).single(),
+        () => api.getProfile(userId) as unknown as Promise<{ data: Profile | null; error: any }>,
         60000
       );
       if (profError) throw profError;
       if (profData) setProfile(profData);
 
-      const { data: memData, error: memError } = await supabase
-        .from('family_members')
-        .select('*, family_groups(*)')
-        .eq('profile_id', userId)
-        .maybeSingle();
+      const { data: memData, error: memError } = await api.getMyFamily();
 
       if (memError) throw memError;
 
@@ -155,10 +152,7 @@ function App() {
         setFamilyId(memData.family_id);
         setFamilyName(memData.family_groups?.name || 'Minha Família');
 
-        const { data: allMembers, error: allMembersError } = await supabase
-          .from('family_members')
-          .select('*, profiles(display_name)')
-          .eq('family_id', memData.family_id);
+        const { data: allMembers, error: allMembersError } = await api.getFamilyMembers(memData.family_id);
 
         if (!allMembersError && allMembers) {
           const names = allMembers.map(m => m.profiles?.display_name || '').filter(Boolean);
@@ -181,53 +175,33 @@ function App() {
     try {
       const { data: catData, error: catError } = await cachedQuery<Category[]>(
         `categories:${familyId || 'global'}`,
-        () => supabase
-          .from('categories')
-          .select('*')
-          .or(`family_id.is.null,family_id.eq.${familyId || '00000000-0000-0000-0000-000000000000'}`),
+        () => api.listCategories() as unknown as Promise<{ data: Category[] | null; error: any }>,
         30000
       );
       if (catError) throw catError;
       if (catData) setCategories(catData);
 
       if (familyId) {
-        const { data: transData, error: transError } = await cachedQuery<any[]>(
-          `transactions:${familyId}`,
-          () => supabase
-            .from('transactions')
-            .select('*, categories(name, color), subcategories(name), profiles(display_name)')
-            .eq('family_id', familyId)
-            .order('date', { ascending: false })
-            .limit(200),
-          15000
-        );
+        // Busca SEMPRE fresca (transações mudam a cada mutação) e paginada,
+        // pois o PostgREST corta em max_rows (default 1000) — saldo truncado.
+        const PAGE_SIZE = 1000;
+        let transData: Transaction[] = [];
+        let transError: any = null;
+        let from = 0;
+        for (;;) {
+          const { data, error } = await api.listTransactions({ family_id: familyId, from, limit: PAGE_SIZE });
+          if (error) {
+            transError = error;
+            break;
+          }
+          transData = transData.concat((data as Transaction[]) || []);
+          if (!data || data.length < PAGE_SIZE) break;
+          from += PAGE_SIZE;
+        }
 
         if (transError) throw transError;
 
-        const txIds = (transData || []).map((t: any) => t.id);
-        let receiptItemsMap: Record<string, ReceiptItem[]> = {};
-        if (txIds.length > 0) {
-          const { data: receiptData } = await supabase
-            .from('receipt_items')
-            .select('*')
-            .in('transaction_id', txIds)
-            .order('line_number', { ascending: true });
-
-          if (receiptData) {
-            for (const item of receiptData) {
-              const txId = item.transaction_id;
-              if (!receiptItemsMap[txId]) receiptItemsMap[txId] = [];
-              receiptItemsMap[txId].push(item);
-            }
-          }
-        }
-
-        const enrichedTrans = (transData || []).map((t: any) => ({
-          ...t,
-          receipt_items: receiptItemsMap[t.id] || [],
-        }));
-
-        setTransactions(enrichedTrans as Transaction[]);
+        setTransactions(transData);
       } else {
         setTransactions([]);
       }
@@ -259,7 +233,7 @@ function App() {
 
   const handleDeleteTransaction = useCallback(async (id: string) => {
     try {
-      const { error } = await supabase.from('transactions').delete().eq('id', id);
+      const { error } = await api.deleteTransaction(id);
       if (error) throw error;
       await fetchFinancialData();
     } catch (err: any) {
@@ -272,7 +246,7 @@ function App() {
     type: 'income' | 'expense'; amount: number;
     category_id: string; subcategory_id?: string | null;
   }) => {
-    const { error } = await supabase.from('transactions').update(updates).eq('id', id);
+    const { error } = await api.updateTransaction(id, updates);
     if (error) throw error;
     await fetchFinancialData();
   }, [fetchFinancialData]);
@@ -292,8 +266,9 @@ function App() {
   }, []);
 
   const handleRefreshCategories = useCallback(async () => {
+    invalidateQuery(`categories:${familyId || 'global'}`);
     await fetchFinancialData();
-  }, [fetchFinancialData]);
+  }, [fetchFinancialData, familyId]);
 
   // Reset scroll to top on every screen change (iOS tab behavior) so the
   // directional exit pane (absolutely positioned at the top) stays visible.

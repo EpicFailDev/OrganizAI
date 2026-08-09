@@ -18,7 +18,7 @@ import {
   Briefcase,
   LogOut,
 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
 import { useAppSettings, type ThemeMode, type CurrencyCode } from '../AppSettings';
 import { CategoryManager } from './CategoryManager';
 import { FamilySettings } from './FamilySettings';
@@ -105,10 +105,10 @@ export const Settings: React.FC<SettingsProps> = ({
     setErrorMsg('');
     setSaved(false);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ display_name: name.trim(), profession })
-        .eq('id', profileId);
+      const { error } = await api.updateProfile(profileId, {
+        display_name: name.trim(),
+        profession,
+      });
       if (error) throw error;
       setSaved(true);
       await onRefreshProfile();

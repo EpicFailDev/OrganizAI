@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
+import { parseNumber } from '../utils';
 import { Receipt, Plus, Trash2, TrendingUp, TrendingDown, X } from 'lucide-react';
 
 interface Category {
@@ -24,8 +25,8 @@ interface Budget {
   category_id: string;
   limit_amount: number;
   period: string;
-  created_at: string;
-  categories?: { name: string; color?: string };
+  created_at?: string;
+  categories?: { name: string; color?: string | null } | null;
 }
 
 interface OrcamentosProps {
@@ -50,11 +51,7 @@ export const Orcamentos: React.FC<OrcamentosProps> = ({ familyId, categories, tr
   const fetchBudgets = async () => {
     if (!familyId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('budgets')
-      .select('*, categories(name, color)')
-      .eq('family_id', familyId)
-      .order('created_at', { ascending: false });
+    const { data } = await api.listBudgets(familyId);
     setBudgets(data || []);
     setLoading(false);
   };
@@ -71,18 +68,19 @@ export const Orcamentos: React.FC<OrcamentosProps> = ({ familyId, categories, tr
       if (t.type !== 'expense') return;
       const d = new Date(t.date);
       if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return;
-      map[t.category_id] = (map[t.category_id] || 0) + Number(t.amount);
+      map[t.category_id] = (map[t.category_id] || 0) + Math.abs(parseNumber(t.amount));
     });
     return map;
   }, [transactions]);
 
   const handleAdd = async () => {
-    if (!newCategoryId || !newLimit || !familyId) return;
+    const limit = Math.abs(parseNumber(newLimit));
+    if (!newCategoryId || limit <= 0 || !familyId) return;
     setSaving(true);
-    const { error } = await supabase.from('budgets').insert({
+    const { error } = await api.createBudget({
       family_id: familyId,
       category_id: newCategoryId,
-      limit_amount: Number(newLimit),
+      limit_amount: limit,
       period: 'monthly',
     });
     if (!error) {
@@ -96,7 +94,7 @@ export const Orcamentos: React.FC<OrcamentosProps> = ({ familyId, categories, tr
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Excluir este orçamento?')) return;
-    await supabase.from('budgets').delete().eq('id', id);
+    await api.deleteBudget(id);
     fetchBudgets();
   };
 

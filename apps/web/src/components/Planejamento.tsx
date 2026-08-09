@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
+import { parseNumber } from '../utils';
 import { BarChart3, Plus, Trash2, Check, X, Clock, ArrowUpRight, ArrowDownRight, Repeat } from 'lucide-react';
 
 interface Category {
@@ -15,14 +16,14 @@ interface PlanningItem {
   description: string;
   type: 'income' | 'expense';
   amount: number;
-  category_id: string | null;
+  category_id?: string | null;
   expected_date: string;
-  recurring: boolean;
-  recurring_pattern: string | null;
+  recurring?: boolean;
+  recurring_pattern?: string | null;
   status: 'pending' | 'confirmed' | 'cancelled';
-  created_by: string;
-  created_at: string;
-  categories?: { name: string; color?: string };
+  created_by?: string;
+  created_at?: string;
+  categories?: { name: string; color?: string | null } | null;
 }
 
 interface PlanejamentoProps {
@@ -51,11 +52,7 @@ export const Planejamento: React.FC<PlanejamentoProps> = ({ familyId, categories
   const fetchItems = async () => {
     if (!familyId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('planning_items')
-      .select('*, categories(name, color)')
-      .eq('family_id', familyId)
-      .order('expected_date', { ascending: true });
+    const { data } = await api.listPlanningItems(familyId);
     setItems(data || []);
     setLoading(false);
   };
@@ -65,17 +62,18 @@ export const Planejamento: React.FC<PlanejamentoProps> = ({ familyId, categories
   }, [familyId]);
 
   const filtered = items.filter((i) => filter === 'all' || i.status === filter);
-  const totalIncome = filtered.filter((i) => i.type === 'income' && i.status !== 'cancelled').reduce((s, i) => s + Number(i.amount), 0);
-  const totalExpense = filtered.filter((i) => i.type === 'expense' && i.status !== 'cancelled').reduce((s, i) => s + Number(i.amount), 0);
+  const totalIncome = filtered.filter((i) => i.type === 'income' && i.status !== 'cancelled').reduce((s, i) => s + Math.abs(parseNumber(i.amount)), 0);
+  const totalExpense = filtered.filter((i) => i.type === 'expense' && i.status !== 'cancelled').reduce((s, i) => s + Math.abs(parseNumber(i.amount)), 0);
 
   const handleAdd = async () => {
-    if (!newDesc || !newAmount || !newDate || !familyId) return;
+    const parsedAmt = Math.abs(parseNumber(newAmount));
+    if (!newDesc || parsedAmt <= 0 || !newDate || !familyId) return;
     setSaving(true);
-    const { error } = await supabase.from('planning_items').insert({
+    const { error } = await api.createPlanningItem({
       family_id: familyId,
       description: newDesc,
       type: newType,
-      amount: Number(newAmount),
+      amount: parsedAmt,
       category_id: newCategoryId || null,
       expected_date: newDate,
       recurring: newRecurring,
@@ -95,13 +93,13 @@ export const Planejamento: React.FC<PlanejamentoProps> = ({ familyId, categories
   };
 
   const handleStatus = async (id: string, status: 'confirmed' | 'cancelled') => {
-    await supabase.from('planning_items').update({ status }).eq('id', id);
+    await api.updatePlanningItem(id, { status });
     fetchItems();
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Excluir este item?')) return;
-    await supabase.from('planning_items').delete().eq('id', id);
+    await api.deletePlanningItem(id);
     fetchItems();
   };
 

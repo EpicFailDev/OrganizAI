@@ -10,7 +10,7 @@ import {
   Download,
 } from 'lucide-react';
 import { useAppSettings } from '../AppSettings';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
 import {
   AreaChart,
   Area, 
@@ -22,6 +22,8 @@ import {
   Pie, 
   Cell
 } from 'recharts';
+
+import { parseNumber } from '../utils';
 
 interface Transaction {
   id: string;
@@ -68,13 +70,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     if (!familyId) return;
-    supabase
-      .from('goals')
-      .select('*')
-      .eq('family_id', familyId)
-      .then(({ data }) => {
-        setGoals(data || []);
-      });
+    api.listGoals(familyId).then(({ data }) => {
+      setGoals(data || []);
+    });
   }, [familyId]);
 
   // Parse 'YYYY-MM-DD' como data LOCAL. new Date('2026-08-01') é tratado como UTC
@@ -101,7 +99,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     let income = 0;
     let expense = 0;
     currentMonthTransactions.forEach(t => {
-      const amount = Number(t.amount);
+      const amount = Math.abs(parseNumber(t.amount));
       if (t.type === 'income') income += amount;
       else expense += amount;
     });
@@ -111,7 +109,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Saldo TOTAL acumulado (todas as transações, não apenas o mês atual)
   const totalBalance = useMemo(() => {
     return transactions.reduce((acc, t) => {
-      const amount = Number(t.amount);
+      const amount = Math.abs(parseNumber(t.amount));
       return t.type === 'income' ? acc + amount : acc - amount;
     }, 0);
   }, [transactions]);
@@ -131,7 +129,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const d = parseLocalDate(t.date);
       const diffDays = Math.floor((d.getTime() - monday.getTime()) / 86400000);
       if (diffDays < 0 || diffDays > 6) return; // fora da semana atual
-      const amt = Number(t.amount);
+      const amt = Math.abs(parseNumber(t.amount));
       if (t.type === 'income') data[diffDays].Receita += amt;
       else data[diffDays].Despesa += amt;
     });
@@ -149,7 +147,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       if (t.type === 'expense') {
         const cat = t.categories?.name || 'Outros';
         const color = t.categories?.color || '#6b7280';
-        const amount = Number(t.amount);
+        const amount = Math.abs(parseNumber(t.amount));
         if (expenseMap[cat]) expenseMap[cat].value += amount;
         else expenseMap[cat] = { name: cat, value: amount, color };
       }
@@ -172,7 +170,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       description: t.description,
       date: parseLocalDate(t.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }),
       type: t.type,
-      amount: Number(t.amount),
+      amount: Math.abs(parseNumber(t.amount)),
       color: t.categories?.color || '#8e8e93',
     }));
   }, [currentMonthTransactions]);

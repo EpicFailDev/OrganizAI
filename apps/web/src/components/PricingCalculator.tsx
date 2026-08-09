@@ -7,15 +7,16 @@ import {
   Check,
   Loader2
 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
 import { parseNumber } from '../utils';
 
 interface RecipeItem {
   id: string;
   ingredient_name: string;
-  package_grams: number;
-  package_cost: number;
-  used_grams: number;
+  package_grams?: number;
+  package_cost?: number;
+  used_grams?: number;
+  sort_order?: number;
 }
 
 interface BaseIngredient {
@@ -30,8 +31,8 @@ interface Recipe {
   name: string;
   yield_quantity: number;
   packaging_cost: number;
-  notes?: string;
-  created_at: string;
+  notes?: string | null;
+  created_at?: string;
 }
 
 interface PricingCalculatorProps {
@@ -77,11 +78,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
     if (!familyId) return;
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from('pricing_recipes')
-      .select('*')
-      .eq('family_id', familyId)
-      .order('created_at', { ascending: false });
+    const { data, error } = await api.listRecipes(familyId);
 
     if (!error && data) {
       setRecipes(data);
@@ -100,11 +97,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
       return;
     }
 
-    const { data: recipe } = await supabase
-      .from('pricing_recipes')
-      .select('*')
-      .eq('id', selectedRecipeId)
-      .single();
+    const { data: recipe } = await api.getRecipe(selectedRecipeId);
 
     if (recipe) {
       setRecipeName(recipe.name);
@@ -113,11 +106,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
       setNotes(recipe.notes || '');
     }
 
-    const { data: itemsData } = await supabase
-      .from('recipe_items')
-      .select('*')
-      .eq('recipe_id', selectedRecipeId)
-      .order('sort_order', { ascending: true });
+    const { data: itemsData } = await api.getRecipeItems(selectedRecipeId);
 
     if (itemsData) {
       setItems(itemsData);
@@ -135,14 +124,9 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
   // Fetch Tabela Base de Ingredientes da família
   useEffect(() => {
     if (!familyId) return;
-    supabase
-      .from('ingredients_base')
-      .select('*')
-      .eq('family_id', familyId)
-      .order('name')
-      .then(({ data, error }) => {
-        if (!error && data) setBaseIngredients(data as BaseIngredient[]);
-      });
+    api.listIngredients(familyId).then(({ data, error }) => {
+      if (!error && data) setBaseIngredients(data as BaseIngredient[]);
+    });
   }, [familyId]);
 
   // Fecha o dropdown ao rolar a página (position:fixed não acompanha o scroll)
@@ -166,17 +150,13 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
 
   // Create new recipe
   const createNewRecipe = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('pricing_recipes')
-      .insert({
-        family_id: familyId,
-        name: 'Nova Receita',
-        created_by: userId,
-        yield_quantity: 10,
-        packaging_cost: 0
-      })
-      .select()
-      .single();
+    const { data, error } = await api.createRecipe({
+      family_id: familyId,
+      name: 'Nova Receita',
+      created_by: userId,
+      yield_quantity: 10,
+      packaging_cost: 0
+    });
 
     if (!error && data) {
       setRecipes(prev => [data, ...prev]);
@@ -186,10 +166,11 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
 
   const calculations = useMemo(() => {
     const itemsWithCost = items.map(item => {
-      const costPerGram = item.package_grams > 0 
-        ? item.package_cost / item.package_grams 
+      const grams = item.package_grams || 0;
+      const costPerGram = grams > 0
+        ? (item.package_cost || 0) / grams
         : 0;
-      const ingredientCost = costPerGram * item.used_grams;
+      const ingredientCost = costPerGram * (item.used_grams || 0);
       return { ...item, costPerGram, ingredientCost };
     });
 
@@ -219,27 +200,17 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
     setSaving(true);
 
     // Update recipe metadata
-    await supabase
-      .from('pricing_recipes')
-      .update({
-        name: recipeName,
-        yield_quantity: yieldQuantity,
-        packaging_cost: packagingCost,
-        notes,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', selectedRecipeId);
+    await api.updateRecipe(selectedRecipeId, {
+      name: recipeName,
+      yield_quantity: yieldQuantity,
+      packaging_cost: packagingCost,
+      notes,
+      updated_at: new Date().toISOString()
+    });
 
-    // Delete existing items
-    await supabase
-      .from('recipe_items')
-      .delete()
-      .eq('recipe_id', selectedRecipeId);
-
-    // Insert new items
+    // Replace items (delete + insert in a single call)
     if (items.length > 0) {
-      const itemsToInsert = items.map((item, index) => ({
-        recipe_id: selectedRecipeId,
+      const itemsToReplace = items.map((item, index) => ({
         ingredient_name: item.ingredient_name,
         package_grams: item.package_grams,
         package_cost: item.package_cost,
@@ -247,22 +218,14 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
         sort_order: index
       }));
 
-      await supabase
-        .from('recipe_items')
-        .insert(itemsToInsert);
+      await api.replaceRecipeItems(selectedRecipeId, itemsToReplace);
     }
 
     // Update products cost price if linked
     const totalCost = calculations.totalIngredients;
     const costPerUnit = yieldQuantity > 0 ? totalCost / yieldQuantity : 0;
 
-    await supabase
-      .from('products')
-      .update({ 
-        cost_price: costPerUnit,
-        updated_at: new Date().toISOString()
-      })
-      .eq('recipe_id', selectedRecipeId);
+    await api.updateProductCostsByRecipe(selectedRecipeId, costPerUnit);
 
     setSaving(false);
     setSaved(true);
@@ -277,10 +240,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
     if (!selectedRecipeId) return;
     if (!confirm('Tem certeza que deseja excluir esta receita?')) return;
 
-    await supabase
-      .from('pricing_recipes')
-      .delete()
-      .eq('id', selectedRecipeId);
+    await api.deleteRecipe(selectedRecipeId);
 
     setSelectedRecipeId(null);
     fetchRecipes();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
 import { Target, Plus, Trash2, CheckCircle, X, TrendingUp, Trophy } from 'lucide-react';
 
 interface Goal {
@@ -8,11 +8,11 @@ interface Goal {
   name: string;
   target_amount: number;
   current_amount: number;
-  deadline: string | null;
-  icon: string;
-  color: string;
+  deadline?: string | null;
+  icon?: string;
+  color?: string;
   status: 'active' | 'completed' | 'cancelled';
-  created_at: string;
+  created_at?: string;
 }
 
 interface MetasProps {
@@ -39,12 +39,8 @@ export const Metas: React.FC<MetasProps> = ({ familyId }) => {
   const fetchGoals = async () => {
     if (!familyId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from('goals')
-      .select('*')
-      .eq('family_id', familyId)
-      .order('created_at', { ascending: false });
-    setGoals(data || []);
+    const { data } = await api.listGoals(familyId);
+    setGoals((data || []) as Goal[]);
     setLoading(false);
   };
 
@@ -58,7 +54,7 @@ export const Metas: React.FC<MetasProps> = ({ familyId }) => {
   const handleAdd = async () => {
     if (!newName || !newTarget || !familyId) return;
     setSaving(true);
-    const { error } = await supabase.from('goals').insert({
+    const { error } = await api.createGoal({
       family_id: familyId,
       name: newName,
       target_amount: Number(newTarget),
@@ -80,13 +76,10 @@ export const Metas: React.FC<MetasProps> = ({ familyId }) => {
     setSaving(true);
     const newAmount = showContribute.current_amount + Number(contributeAmount);
     const completed = newAmount >= showContribute.target_amount;
-    const { error } = await supabase
-      .from('goals')
-      .update({
-        current_amount: newAmount,
-        status: completed ? 'completed' : 'active',
-      })
-      .eq('id', showContribute.id);
+    const { error } = await api.updateGoal(showContribute.id, {
+      current_amount: newAmount,
+      status: completed ? 'completed' : 'active',
+    });
     if (!error) {
       setShowContribute(null);
       setContributeAmount('');
@@ -97,12 +90,12 @@ export const Metas: React.FC<MetasProps> = ({ familyId }) => {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Excluir esta meta?')) return;
-    await supabase.from('goals').delete().eq('id', id);
+    await api.deleteGoal(id);
     fetchGoals();
   };
 
   const handleReset = async (id: string) => {
-    await supabase.from('goals').update({ current_amount: 0, status: 'active' }).eq('id', id);
+    await api.updateGoal(id, { current_amount: 0, status: 'active' });
     fetchGoals();
   };
 

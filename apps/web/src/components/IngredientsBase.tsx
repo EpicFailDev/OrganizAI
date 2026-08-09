@@ -9,7 +9,7 @@ import {
   Search,
   Package
 } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { api } from '../lib/apiClient';
 import { parseNumber } from '../utils';
 
 interface IngredientRow {
@@ -47,11 +47,7 @@ export const IngredientsBase: React.FC<IngredientsBaseProps> = ({ familyId }) =>
   const fetchIngredients = useCallback(async () => {
     if (!familyId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('ingredients_base')
-      .select('*')
-      .eq('family_id', familyId)
-      .order('name');
+    const { data, error } = await api.listIngredients(familyId);
 
     if (!error && data) {
       setRows(data.map((r: any) => ({
@@ -110,7 +106,7 @@ export const IngredientsBase: React.FC<IngredientsBaseProps> = ({ familyId }) =>
     setSaved(false);
     try {
       for (const id of deletedIds) {
-        await supabase.from('ingredients_base').delete().eq('id', id);
+        await api.deleteIngredient(id);
       }
       for (const row of rows) {
         const payload = {
@@ -119,15 +115,15 @@ export const IngredientsBase: React.FC<IngredientsBaseProps> = ({ familyId }) =>
           package_cost: parseNumber(row.package_cost)
         };
         if (row.isNew) {
-          await supabase.from('ingredients_base').insert({
+          await api.createIngredient({
             family_id: familyId,
             ...payload
           });
         } else if (dirtyIds.has(row.id)) {
-          await supabase.from('ingredients_base').update({
+          await api.updateIngredient(row.id, {
             ...payload,
             updated_at: new Date().toISOString()
-          }).eq('id', row.id);
+          });
         }
       }
       await fetchIngredients();
