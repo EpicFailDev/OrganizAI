@@ -25,16 +25,20 @@ export const supabase = createClient(
  * que o PostgREST aplique as políticas RLS daquele usuário.
  */
 export function createUserClient(accessToken: string) {
-  return createClient(url, anonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+  return createClient(
+    url || 'https://supabase-placeholder.invalid',
+    anonKey || 'placeholder',
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  });
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    }
+  );
 }

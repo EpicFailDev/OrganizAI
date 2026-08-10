@@ -14,7 +14,7 @@ if (!config.supabase.url || !config.supabase.anonKey) {
   console.error(
     'Configuração do Supabase ausente: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (ou SUPABASE_URL / SUPABASE_ANON_KEY).'
   );
-  if (process.env.NODE_ENV === 'production') {
+  if (config.nodeEnv === 'production') {
     process.exit(1);
   }
 }
@@ -40,6 +40,20 @@ const server = createServer((req, res) => {
 });
 
 server.listen(config.port);
+
+server.on('error', (err) => {
+  console.error('Erro no servidor:', err);
+  process.exit(1);
+});
+
+const shutdown = () => {
+  console.log('\nEncerrando servidor...');
+  server.close(() => process.exit(0));
+  // Força saída caso conexões pendentes travem o shutdown.
+  setTimeout(() => process.exit(0), 5000).unref();
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 console.log(`🚀 Servidor Backend OrganizAI escutando na porta ${config.port}...`);
 console.log(`📄 Documentação Scalar disponível em http://localhost:${config.port}/doc`);

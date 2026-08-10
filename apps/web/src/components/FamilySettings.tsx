@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/apiClient';
 import { Users, Plus, Shield, Clipboard, Check, UserMinus } from 'lucide-react';
 
@@ -18,6 +18,7 @@ interface Member {
 interface FamilySettingsProps {
   familyId: string | null;
   familyName: string;
+  inviteCode?: string | null;
   userId: string;
   onRefreshFamily: () => Promise<void>;
 }
@@ -25,6 +26,7 @@ interface FamilySettingsProps {
 export const FamilySettings: React.FC<FamilySettingsProps> = ({
   familyId,
   familyName,
+  inviteCode,
   userId,
   onRefreshFamily
 }) => {
@@ -37,7 +39,7 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     if (!familyId) return;
     try {
       const { data, error } = await api.getFamilyMembers(familyId);
@@ -47,11 +49,18 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
     } catch (err: any) {
       console.error('Erro ao buscar membros:', err.message);
     }
-  };
+  }, [familyId]);
 
   useEffect(() => {
     fetchMembers();
-  }, [familyId]);
+  }, [fetchMembers]);
+
+  const copiedTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   const handleCreateFamily = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,10 +105,12 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
   };
 
   const handleCopyId = () => {
-    if (!familyId) return;
-    navigator.clipboard.writeText(familyId);
+    const code = inviteCode || familyId;
+    if (!code) return;
+    navigator.clipboard.writeText(code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = window.setTimeout(() => setCopied(false), 2000);
   };
 
   const handleLeaveFamily = async () => {
@@ -199,16 +210,16 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
               <Users size={18} color="var(--color-primary)" /> Participar de Grupo Existente
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: '1.6' }}>
-              Se o seu parceiro(a) já criou o grupo familiar, insira o ID único compartilhado para sincronizar suas receitas e despesas instantaneamente.
+              Se o seu parceiro(a) já criou o grupo familiar, insira o código de convite compartilhado para sincronizar suas receitas e despesas instantaneamente.
             </p>
 
             <form onSubmit={handleJoinFamily} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
               <div className="form-group">
-                <label className="form-label">Código de Conexão Familiar (ID do Grupo)</label>
+                <label className="form-label">Código de Convite</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Copie e cole o ID completo (UUID)"
+                  placeholder="Ex: AB12CD34"
                   value={joinFamilyId}
                   onChange={(e) => setJoinFamilyId(e.target.value)}
                   required
@@ -255,9 +266,10 @@ export const FamilySettings: React.FC<FamilySettingsProps> = ({
                   whiteSpace: 'nowrap',
                   border: '1px solid rgba(255,255,255,0.03)',
                   fontFamily: 'monospace',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  letterSpacing: '0.08em'
                 }}>
-                  {familyId}
+                  {inviteCode || familyId}
                 </code>
                 <button
                   onClick={handleCopyId}

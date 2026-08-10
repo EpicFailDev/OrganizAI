@@ -1,17 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-
-export type ThemeMode = 'dark' | 'light';
-export type CurrencyCode = 'BRL' | 'USD' | 'EUR';
-
-interface AppSettingsValue {
-  theme: ThemeMode;
-  setTheme: (t: ThemeMode) => void;
-  currency: CurrencyCode;
-  setCurrency: (c: CurrencyCode) => void;
-  notifications: boolean;
-  setNotifications: (v: boolean) => void;
-  formatCurrency: (value: number) => string;
-}
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import {
+  AppSettingsContext,
+  type AppSettingsValue,
+  type ThemeMode,
+  type CurrencyCode,
+} from './useAppSettings';
 
 const STORAGE_KEY = 'organizai.settings';
 
@@ -25,14 +18,6 @@ const DEFAULTS: Omit<AppSettingsValue, 'setTheme' | 'setCurrency' | 'setNotifica
   theme: 'dark',
   currency: 'BRL',
   notifications: true,
-};
-
-const AppSettingsContext = createContext<AppSettingsValue | null>(null);
-
-export const useAppSettings = (): AppSettingsValue => {
-  const ctx = useContext(AppSettingsContext);
-  if (!ctx) throw new Error('useAppSettings must be used within <AppSettingsProvider>');
-  return ctx;
 };
 
 export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -55,15 +40,11 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
-  // Apply theme to <html> for CSS variable overrides
+  // Apply theme to <html> and persist settings whenever any of them change
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme, currency, notifications }));
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme, currency, notifications }));
-  }, [currency, notifications]);
+  }, [theme, currency, notifications]);
 
   const setTheme = useCallback((t: ThemeMode) => setThemeState(t), []);
   const setCurrency = useCallback((c: CurrencyCode) => setCurrencyState(c), []);

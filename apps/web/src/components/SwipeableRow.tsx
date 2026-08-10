@@ -21,7 +21,6 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
   const startYRef = useRef(0);
   const isHorizontalSwipeRef = useRef<boolean | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const justClosedRef = useRef(false);
 
   const ACTION_WIDTH = 75;
   const MAX_SWIPE = onEdit && onDelete ? ACTION_WIDTH * 2 : ACTION_WIDTH;
@@ -81,12 +80,8 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
   }, [disabled, offsetX, MAX_SWIPE]);
 
   const resetSwipe = useCallback(() => {
-    justClosedRef.current = true;
     setOffsetX(0);
     setIsSwipeOpen(false);
-    setTimeout(() => {
-      justClosedRef.current = false;
-    }, 100);
   }, []);
 
   const handleEdit = () => {

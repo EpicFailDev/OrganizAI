@@ -1,30 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { formatCurrency, parseNumber } from '../utils';
+import { formatCurrency, parseNumber, parseLocalDate } from '../utils';
 import {
   BarChart3, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
-  Calendar, Download, PieChart as PieIcon,
+  Calendar,
 } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart as RechartsPieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area,
 } from 'recharts';
 
 // Parse 'YYYY-MM-DD' como data LOCAL (new Date(str) é UTC e desloca o dia no BR)
-const parseLocalDate = (value: string) => {
-  const s = String(value);
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  const d = new Date(s);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-};
-
-interface Category {
-  id: string;
-  name: string;
-  type: 'income' | 'expense';
-  color?: string;
-}
 
 interface Transaction {
   id: string;
@@ -37,16 +22,15 @@ interface Transaction {
 
 interface RelatoriosProps {
   transactions: Transaction[];
-  categories: Category[];
 }
 
 const fmt = (v: number) => formatCurrency(v);
 
-export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories }) => {
+export const Relatorios: React.FC<RelatoriosProps> = ({ transactions }) => {
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year'>('month');
 
-  const now = new Date();
   const filteredTx = useMemo(() => {
+    const now = new Date();
     return transactions.filter((t) => {
       const d = parseLocalDate(t.date);
       if (period === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
@@ -72,6 +56,7 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
 
   // Monthly evolution (last 12 months)
   const monthlyData = useMemo(() => {
+    const now = new Date();
     const data: { name: string; Entradas: number; Saídas: number; Saldo: number }[] = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -127,7 +112,11 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions, categories
   const totalIncome = incomeBreakdown.reduce((s, c) => s + c.value, 0) || 1;
 
   // Daily average
-  const daysInPeriod = period === 'month' ? new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() : period === 'quarter' ? 90 : 365;
+  const daysInPeriod = (() => {
+    if (period !== 'month') return period === 'quarter' ? 90 : 365;
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  })();
   const avgDaily = totals.balance / daysInPeriod;
 
   // Best/worst days

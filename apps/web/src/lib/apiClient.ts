@@ -257,7 +257,6 @@ export const api = {
   updateProfile: (userId: string, body: Partial<{ display_name: string; profession: string | null }>) =>
     patch<Profile>(`/v1/profile/${userId}`, body),
   getMyFamily: () => get<MyFamily>('/v1/me/family'),
-  getFamily: (familyId: string) => get<FamilyGroup>(`/v1/family/${familyId}`),
   getFamilyMembers: (familyId: string) => get<FamilyMember[]>(`/v1/family/${familyId}/members`),
   createFamily: (name: string) => post<{ family_id: string }>('/v1/family', { name }),
   joinFamily: (invite_code: string) => post<{ success: boolean }>('/v1/family/join', { invite_code }),
@@ -341,9 +340,6 @@ export const api = {
   listProducts: (family_id?: string) => get<Product[]>('/v1/products', { family_id }),
   createProduct: (body: { family_id: string; name: string; selling_price?: number | null; unit?: string }) =>
     post<Product>('/v1/products', body),
-  updateProduct: (id: string, body: Partial<Omit<Product, 'id' | 'family_id'>>) =>
-    patch<Product>(`/v1/products/${id}`, body),
-  deleteProduct: (id: string) => del<{ success: boolean }>(`/v1/products/${id}`),
   listSales: (params: { family_id?: string; from?: number; limit?: number } = {}) =>
     get<Sale[]>('/v1/sales', params),
   createSale: (body: Partial<Sale> & { family_id: string; product_id: string; quantity: number; created_by: string }) =>

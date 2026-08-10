@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/apiClient';
 import { Target, Plus, Trash2, CheckCircle, X, TrendingUp, Trophy } from 'lucide-react';
 
@@ -26,7 +26,6 @@ const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'
 
 export const Metas: React.FC<MetasProps> = ({ familyId }) => {
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [showContribute, setShowContribute] = useState<Goal | null>(null);
   const [newName, setNewName] = useState('');
@@ -36,17 +35,15 @@ export const Metas: React.FC<MetasProps> = ({ familyId }) => {
   const [contributeAmount, setContributeAmount] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const fetchGoals = async () => {
+  const fetchGoals = useCallback(async () => {
     if (!familyId) return;
-    setLoading(true);
     const { data } = await api.listGoals(familyId);
     setGoals((data || []) as Goal[]);
-    setLoading(false);
-  };
+  }, [familyId]);
 
   useEffect(() => {
     fetchGoals();
-  }, [familyId]);
+  }, [fetchGoals]);
 
   const activeGoals = goals.filter((g) => g.status === 'active');
   const completedGoals = goals.filter((g) => g.status === 'completed');

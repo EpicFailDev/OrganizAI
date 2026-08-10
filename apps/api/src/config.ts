@@ -7,9 +7,27 @@
  */
 const env = process.env;
 
+/** Converte um valor de ambiente em número, falhando claramente em NaN. */
+function envInt(value: string | undefined, fallback: number, name: string): number {
+  if (value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Variável de ambiente inválida: ${name}="${value}" não é um número.`);
+  }
+  return parsed;
+}
+
+/** Resolve um booleano de ambiente ('true'/'1' = true). */
+function envBool(value: string | undefined): boolean {
+  return value === 'true' || value === '1';
+}
+
 export const config = {
   /** Porta HTTP do servidor Hono. */
-  port: Number(env.PORT || 3000),
+  port: envInt(env.PORT, 3000, 'PORT'),
+
+  /** Ambiente de execução ('production', 'development', etc.). */
+  nodeEnv: env.NODE_ENV || 'development',
 
   supabase: {
     url: env.VITE_SUPABASE_URL || env.SUPABASE_URL || '',
@@ -50,7 +68,9 @@ export const config = {
       .filter(Boolean),
   },
 
-  bodyLimitBytes: 1024 * 1024, // 1 MB
+  bodyLimitBytes: envInt(env.BODY_LIMIT_BYTES, 1024 * 1024, 'BODY_LIMIT_BYTES'), // 1 MB
+  /** Exibição em MB (para mensagens de erro) derivada de bodyLimitBytes. */
+  bodyLimitBytesMb: envInt(env.BODY_LIMIT_BYTES, 1024 * 1024, 'BODY_LIMIT_BYTES') / 1024 / 1024,
 
   cors: {
     // Default restrito: origens de desenvolvimento e os domínios oficiais.
@@ -64,13 +84,16 @@ export const config = {
           'https://organizai.duckdns.org',
           'https://doc.organizai.duckdns.org',
         ],
-    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
-    maxAge: 86400,
+    maxAge: envInt(env.CORS_MAX_AGE, 86400, 'CORS_MAX_AGE'),
   },
 
   rateLimit: {
-    windowMs: Number(env.RATE_LIMIT_WINDOW_MS || 60_000),
-    max: Number(env.RATE_LIMIT_MAX || 120),
+    windowMs: envInt(env.RATE_LIMIT_WINDOW_MS, 60_000, 'RATE_LIMIT_WINDOW_MS'),
+    max: envInt(env.RATE_LIMIT_MAX, 120, 'RATE_LIMIT_MAX'),
+    // Habilite apenas quando um proxy reverso próprio sobrescreve
+    // X-Forwarded-For em toda requisição (nginx/apache).
+    trustProxy: envBool(env.RATE_LIMIT_TRUST_PROXY),
   },
 };

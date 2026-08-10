@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -34,11 +34,16 @@ export const PWAInstallPrompt: React.FC = () => {
       e.preventDefault();
       setDeferredPrompt(e);
       // Show banner after a short delay
-      setTimeout(() => setShowBanner(true), 2000);
+      bannerTimer = window.setTimeout(() => setShowBanner(true), 2000);
     };
 
+    let bannerTimer: number | undefined;
+
     window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      if (bannerTimer) window.clearTimeout(bannerTimer);
+    };
   }, []);
 
   const handleInstall = async () => {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { api } from '../lib/apiClient';
-import { parseNumber } from '../utils';
+import { parseNumber, parseLocalDate } from '../utils';
 import {
   Calendar, ChevronLeft, ChevronRight, Plus, X,
   ArrowUpRight, ArrowDownRight, Clock,
@@ -71,7 +71,7 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
     let expense = 0;
     let count = 0;
     transactions.forEach((t) => {
-      const d = new Date(t.date);
+      const d = parseLocalDate(t.date);
       if (d.getMonth() === month && d.getFullYear() === year) {
         count++;
         const amt = Math.abs(parseNumber(t.amount));
@@ -214,11 +214,14 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
               const dayTx = txByDate[key] || [];
               const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
               const isSelected = selectedDay?.getDate() === day && selectedDay?.getMonth() === month && selectedDay?.getFullYear() === year;
-              const hasIncome = dayTx.some((t) => t.type === 'income');
-              const hasExpense = dayTx.some((t) => t.type === 'expense');
 
               return (
-                <div key={day} onClick={() => setSelectedDay(date)} style={{
+                <button
+                  type="button"
+                  key={day}
+                  onClick={() => setSelectedDay(date)}
+                  aria-label={`Dia ${day}`}
+                  style={{
                   aspectRatio: '1', minHeight: '70px',
                   borderRadius: 'var(--radius-sm)',
                   border: `1px solid ${isSelected ? 'var(--color-primary)' : isToday ? 'rgba(255,255,255,0.12)' : 'var(--border-color)'}`,
@@ -226,7 +229,8 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
                   padding: '0.35rem', cursor: 'pointer',
                   display: 'flex', flexDirection: 'column', gap: '0.15rem',
                   transition: 'all var(--transition-fast)',
-                }}
+                  fontFamily: 'var(--font-body)', textAlign: 'left',
+                  }}
                 onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; }}
                 onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = isToday ? 'rgba(255,255,255,0.03)' : 'transparent'; }}
                 >
@@ -254,7 +258,7 @@ export const Calendario: React.FC<CalendarioProps> = ({ transactions, categories
                       )}
                     </div>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>

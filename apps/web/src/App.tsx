@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
-import { supabase, cachedQuery, invalidateQuery } from './supabaseClient';
+import { supabase, cachedQuery, invalidateQuery, clearQueryCache } from './supabaseClient';
 import { api } from './lib/apiClient';
-import { ProfileSelector } from './components/ProfileSelector';
+import { Auth } from './components/Auth';
 import { Sidebar } from './components/Sidebar';
 import { MobileTabBar } from './components/MobileTabBar';
 import { MobileHeader } from './components/MobileHeader';
 import { ViewStack } from './components/ViewStack';
 import { AppSettingsProvider } from './AppSettings';
-import { Loader2, Users, Menu } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
-import { Onboarding, isOnboardingComplete } from './components/Onboarding';
+import { Onboarding } from './components/Onboarding';
+import { isOnboardingComplete } from './utils';
 
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const TransactionsList = lazy(() => import('./components/TransactionsList').then(m => ({ default: m.TransactionsList })));
-const CategoryManager = lazy(() => import('./components/CategoryManager').then(m => ({ default: m.CategoryManager })));
 const FamilySettings = lazy(() => import('./components/FamilySettings').then(m => ({ default: m.FamilySettings })));
 const AddTransactionModal = lazy(() => import('./components/AddTransactionModal').then(m => ({ default: m.AddTransactionModal })));
 const Orcamentos = lazy(() => import('./components/Orcamentos').then(m => ({ default: m.Orcamentos })));
@@ -101,7 +101,7 @@ function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [familyName, setFamilyName] = useState('');
-  const [familyMembers, setFamilyMembers] = useState<string[]>([]);
+  const [familyInviteCode, setFamilyInviteCode] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [view, setView] = useState('dashboard');
@@ -124,6 +124,9 @@ function App() {
       if (!isOnboardingComplete()) {
         setShowOnboarding(true);
       }
+    }).catch((err: unknown) => {
+      console.error('Erro ao verificar sessão:', err);
+      setAuthChecked(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -151,17 +154,11 @@ function App() {
       if (memData) {
         setFamilyId(memData.family_id);
         setFamilyName(memData.family_groups?.name || 'Minha Família');
-
-        const { data: allMembers, error: allMembersError } = await api.getFamilyMembers(memData.family_id);
-
-        if (!allMembersError && allMembers) {
-          const names = allMembers.map(m => m.profiles?.display_name || '').filter(Boolean);
-          setFamilyMembers(names);
-        }
+        setFamilyInviteCode(memData.family_groups?.invite_code || null);
       } else {
         setFamilyId(null);
         setFamilyName('');
-        setFamilyMembers([]);
+        setFamilyInviteCode(null);
       }
     } catch (err: any) {
       console.error('Erro ao buscar perfil/família:', err.message);
@@ -219,7 +216,7 @@ function App() {
       setProfile(null);
       setFamilyId(null);
       setFamilyName('');
-      setFamilyMembers([]);
+      setFamilyInviteCode(null);
       setCategories([]);
       setTransactions([]);
     }
@@ -229,7 +226,7 @@ function App() {
     if (session?.user?.id) {
       fetchFinancialData();
     }
-  }, [familyId, fetchFinancialData]);
+  }, [familyId, fetchFinancialData, session?.user?.id]);
 
   const handleDeleteTransaction = useCallback(async (id: string) => {
     try {
@@ -246,13 +243,18 @@ function App() {
     type: 'income' | 'expense'; amount: number;
     category_id: string; subcategory_id?: string | null;
   }) => {
-    const { error } = await api.updateTransaction(id, updates);
-    if (error) throw error;
-    await fetchFinancialData();
+    try {
+      const { error } = await api.updateTransaction(id, updates);
+      if (error) throw error;
+      await fetchFinancialData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao atualizar transação.');
+    }
   }, [fetchFinancialData]);
 
   const handleRefreshFamily = useCallback(async () => {
     if (session?.user?.id) {
+      invalidateQuery(`profile:${session.user.id}`);
       await fetchProfileAndFamily(session.user.id);
     }
   }, [session?.user?.id, fetchProfileAndFamily]);
@@ -261,6 +263,7 @@ function App() {
 
   const handleLogout = useCallback(async () => {
     if (!window.confirm('Deseja realmente sair da sua conta?')) return;
+    clearQueryCache();
     await supabase.auth.signOut();
     setSession(null);
   }, []);
@@ -352,8 +355,6 @@ function App() {
         {v === 'dashboard' && (
           <Dashboard
             transactions={transactions}
-            profileName={profile?.display_name}
-            familyMembers={familyMembers}
             onNavigate={handleViewChange}
             profession={profile?.profession}
             familyId={familyId || ''}
@@ -377,7 +378,6 @@ function App() {
             categories={categories}
             onDeleteTransaction={handleDeleteTransaction}
             onUpdateTransaction={handleUpdateTransaction}
-            familyId={familyId || ''}
             userId={session.user.id}
             presetType={
               v === 'transactions-entradas' ? 'income' :
@@ -393,6 +393,7 @@ function App() {
             initialProfession={profile?.profession}
             familyId={familyId}
             familyName={familyName}
+            inviteCode={familyInviteCode}
             userId={session.user.id}
             onRefreshProfile={handleRefreshProfile}
             onRefreshFamily={handleRefreshFamily}
@@ -405,6 +406,7 @@ function App() {
           <FamilySettings
             familyId={familyId}
             familyName={familyName}
+            inviteCode={familyInviteCode}
             userId={session.user.id}
             onRefreshFamily={handleRefreshFamily}
           />
@@ -417,7 +419,7 @@ function App() {
           <Planejamento familyId={familyId || ''} categories={categories} userId={session.user.id} />
         )}
         {v === 'relatorios' && (
-          <Relatorios transactions={transactions} categories={categories} />
+          <Relatorios transactions={transactions} />
         )}
         {v === 'calendario' && (
           <Calendario
@@ -441,7 +443,7 @@ function App() {
   }
 
   if (!session) {
-    return <ProfileSelector onAuthSuccess={() => {}} />;
+    return <Auth onAuthSuccess={() => {}} />;
   }
 
   return (

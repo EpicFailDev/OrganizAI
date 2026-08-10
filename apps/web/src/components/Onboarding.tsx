@@ -10,15 +10,11 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+import { ONBOARDING_KEY } from '../utils';
+
 interface OnboardingProps {
   onComplete: () => void;
 }
-
-const ONBOARDING_KEY = 'organizai_onboarding_complete';
-
-export const isOnboardingComplete = (): boolean => {
-  return localStorage.getItem(ONBOARDING_KEY) === 'true';
-};
 
 const STEPS = [
   {
@@ -98,22 +94,22 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     [currentStep, isAnimating]
   );
 
+  const handleComplete = useCallback(() => {
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    onComplete();
+  }, [onComplete]);
+
   const goNext = useCallback(() => {
     if (currentStep < STEPS.length - 1) {
       goTo(currentStep + 1);
     } else {
       handleComplete();
     }
-  }, [currentStep, goTo]);
+  }, [currentStep, goTo, handleComplete]);
 
   const goPrev = useCallback(() => {
     if (currentStep > 0) goTo(currentStep - 1);
   }, [currentStep, goTo]);
-
-  const handleComplete = useCallback(() => {
-    localStorage.setItem(ONBOARDING_KEY, 'true');
-    onComplete();
-  }, [onComplete]);
 
   // Touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -152,7 +148,6 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
   const step = STEPS[currentStep];
   const Icon = step.icon;
-  const progress = ((currentStep + 1) / STEPS.length) * 100;
 
   return (
     <div

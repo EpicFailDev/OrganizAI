@@ -8,7 +8,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { api } from '../lib/apiClient';
-import { parseNumber } from '../utils';
+import { parseNumber, formatCurrency } from '../utils';
 
 interface RecipeItem {
   id: string;
@@ -41,9 +41,6 @@ interface PricingCalculatorProps {
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
-
-const formatCurrency = (value: number) => 
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 
 export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
@@ -115,11 +112,11 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
 
   useEffect(() => {
     fetchRecipes();
-  }, [familyId]);
+  }, [fetchRecipes]);
 
   useEffect(() => {
     fetchRecipeItems();
-  }, [selectedRecipeId]);
+  }, [fetchRecipeItems]);
 
   // Fetch Tabela Base de Ingredientes da família
   useEffect(() => {
@@ -813,36 +810,6 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
           }}
         />
       </div>
-
-      {/* CSS for Excel-like cells */}
-      <style>{`
-        .excel-input-cell {
-          background: #e3f2fd !important;
-          border: 1px solid #2196f3 !important;
-          padding: 0.5rem !important;
-          text-align: center !important;
-          font-family: 'Arial', sans-serif !important;
-          font-size: 0.85rem !important;
-          border-radius: 4px !important;
-          transition: all 0.2s !important;
-          color: #333 !important;
-        }
-        .excel-input-cell:focus {
-          outline: none !important;
-          box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3) !important;
-          background: #bbdefb !important;
-        }
-        .excel-readonly-cell {
-          background: rgba(255,255,255,0.05) !important;
-          padding: 0.5rem !important;
-          text-align: center !important;
-          font-family: 'Arial', sans-serif !important;
-          font-size: 0.85rem !important;
-          border: 1px solid var(--border-color) !important;
-          border-radius: 4px !important;
-          color: var(--text-primary) !important;
-        }
-      `}</style>
     </div>
   );
 };

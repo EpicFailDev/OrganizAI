@@ -9,13 +9,12 @@ import {
   ChevronRight,
   ArrowUpRight,
   ArrowDownRight,
-  Check,
   CheckCircle2,
   Circle,
   Tag,
   ListChecks,
 } from 'lucide-react';
-import { formatCurrency, parseNumber } from '../utils';
+import { formatCurrency, parseNumber, parseLocalDate } from '../utils';
 import { getSignedAttachmentUrl } from '../lib/storage';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { SwipeableRow } from './SwipeableRow';
@@ -70,7 +69,6 @@ interface TransactionsListProps {
   onUpdateTransaction: (id: string, updates: TransactionUpdate) => Promise<void>;
   presetType?: 'income' | 'expense' | 'all';
   presetSearch?: string;
-  familyId: string;
   userId: string;
 }
 
@@ -81,7 +79,6 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   onUpdateTransaction,
   presetType = 'all',
   presetSearch = '',
-  familyId,
   userId
 }) => {
   const [searchInput, setSearchInput] = useState(presetSearch);
@@ -92,8 +89,6 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   const [endDate, setEndDate] = useState('');
   
   const [viewerImage, setViewerImage] = useState<string | null>(null);
-  const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerReceiptItems, setViewerReceiptItems] = useState<{ transaction: Transaction; items: ReceiptItem[] } | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Transaction | null>(null);
@@ -106,14 +101,11 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   const [bulkBusy, setBulkBusy] = useState(false);
   const longPressTimer = useRef<number | null>(null);
 
-  // Parse 'YYYY-MM-DD' como data LOCAL (new Date(str) é UTC e desloca o dia no BR)
-  const parseLocalDate = (value: string) => {
-    const s = String(value);
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    const d = new Date(s);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  };
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    };
+  }, []);
 
   const exitSelection = () => {
     setSelectionMode(false);
@@ -147,11 +139,9 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
 
   const openViewer = async (value?: string) => {
     if (!value) return;
-    setViewerLoading(true);
     setViewerImage(null);
     const url = await getSignedAttachmentUrl(value);
     setViewerImage(url);
-    setViewerLoading(false);
   };
 
   useEffect(() => {
@@ -490,9 +480,18 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                 const row = (
                 <div
                   className="ios-list-item"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     if (selectionMode) toggleSelected(t.id);
                     else setSelectedTransaction(t);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (selectionMode) toggleSelected(t.id);
+                      else setSelectedTransaction(t);
+                    }
                   }}
                   onTouchStart={() => startLongPress(t.id)}
                   onTouchEnd={cancelLongPress}
@@ -532,7 +531,16 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                         </>
                       )}
                       {t.attachment_url && (
-                        <ImageIcon size={11} color="#30d158" style={{ marginLeft: 2 }} />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openViewer(t.attachment_url); }}
+                          aria-label="Ver comprovante"
+                          style={{
+                            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                            display: 'inline-flex', marginLeft: 2,
+                          }}
+                        >
+                          <ImageIcon size={11} color="#30d158" />
+                        </button>
                       )}
                       {t.receipt_items && t.receipt_items.length > 0 && (
                         <FileText size={11} color="#007aff" style={{ marginLeft: 2 }} />
@@ -723,7 +731,6 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
           onDelete={onDeleteTransaction}
           onUpdate={onUpdateTransaction}
           categories={categories}
-          familyId={familyId}
           userId={userId}
         />
       )}
@@ -774,43 +781,6 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
                 >
                   Excluir
                 </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Receipt Items Detail Modal */}
-      {viewerReceiptItems && (
-        <div className="ios-sheet-overlay open" onClick={() => setViewerReceiptItems(null)}>
-          <div className="ios-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="ios-sheet-handle">
-              <div className="ios-sheet-handle-bar" />
-            </div>
-            <div className="ios-sheet-header">
-              <h3 className="ios-sheet-title">Itens da Nota</h3>
-              <button className="ios-sheet-close" onClick={() => setViewerReceiptItems(null)}>
-                <X size={16} />
-              </button>
-            </div>
-            <div className="ios-sheet-body">
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                {viewerReceiptItems.transaction.description} · {parseLocalDate(viewerReceiptItems.transaction.date).toLocaleDateString('pt-BR')}
-              </p>
-              <div className="ios-grouped-list">
-                {viewerReceiptItems.items.map((item) => (
-                  <div key={item.id} className="ios-list-item" style={{ cursor: 'default' }}>
-                    <div className="ios-list-item-content">
-                      <div className="ios-list-item-title" style={{ fontSize: '0.88rem' }}>{item.item_name}</div>
-                      <div className="ios-list-item-subtitle">
-                        {item.quantity}x {formatCurrency(Number(item.unit_price))}
-                      </div>
-                    </div>
-                    <span className="ios-list-item-value" style={{ color: '#ff453a' }}>
-                      {formatCurrency(Number(item.total_price))}
-                    </span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

@@ -1,11 +1,11 @@
-import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
+import { createRoute } from '@hono/zod-openapi';
 import { getDb, getUserId } from '../../lib/request-context.js';
-import type { AppEnv } from '../../lib/request-context.js';
 import { dbErrorHandler, isPostgrestError } from '../../lib/errors.js';
+import { createApiApp } from '../../lib/hono.js';
 import { computeFinancialSummary, emptySummary } from '../../services/financial-summary.js';
 import { FinancialAnalyticsSummarySchema, ErrorResponseSchema } from '../../schemas/index.js';
 
-const analyticsApp = new OpenAPIHono<AppEnv>();
+const analyticsApp = createApiApp();
 
 const summaryRoute = createRoute({
   method: 'get',
@@ -52,10 +52,11 @@ analyticsApp.openapi(summaryRoute, async (c) => {
     return dbErrorHandler(error);
   }
 
-  const { count: familyMembersCount } = await db
+  const { count: familyMembersCount, error: countError } = await db
     .from('family_members')
     .select('profile_id', { count: 'exact', head: true })
     .eq('family_id', familyId);
+  if (countError) return dbErrorHandler(countError);
 
   return c.json({ ...summary, family_members_count: familyMembersCount || 0 }, 200);
 });

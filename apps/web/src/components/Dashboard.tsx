@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Wallet, 
-  TrendingUp, 
-  TrendingDown, 
   Target as TargetIcon,
   ArrowUpRight,
   ArrowDownRight,
   ChevronRight,
-  Download,
 } from 'lucide-react';
-import { useAppSettings } from '../AppSettings';
+import { useAppSettings } from '../useAppSettings';
 import { api } from '../lib/apiClient';
+import { parseNumber, parseLocalDate } from '../utils';
 import {
   AreaChart,
   Area, 
@@ -22,8 +20,6 @@ import {
   Pie, 
   Cell
 } from 'recharts';
-
-import { parseNumber } from '../utils';
 
 interface Transaction {
   id: string;
@@ -48,8 +44,6 @@ interface Goal {
 
 interface DashboardProps {
   transactions: Transaction[];
-  profileName?: string;
-  familyMembers?: string[];
   onNavigate?: (view: string) => void;
   profession?: string;
   familyId?: string;
@@ -57,14 +51,11 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({
   transactions,
-  profileName,
-  familyMembers = [],
   onNavigate,
   profession,
   familyId
 }) => {
   const { formatCurrency } = useAppSettings();
-  const name = profileName || 'Usuário';
 
   const [goals, setGoals] = useState<Goal[]>([]);
 
@@ -74,16 +65,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setGoals(data || []);
     });
   }, [familyId]);
-
-  // Parse 'YYYY-MM-DD' como data LOCAL. new Date('2026-08-01') é tratado como UTC
-  // e no Brasil (UTC-3) vira 31/07 21:00, jogando o dia 1º para o mês anterior.
-  const parseLocalDate = (value: string) => {
-    const s = String(value);
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    const d = new Date(s);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  };
 
   const currentMonthTransactions = useMemo(() => {
     const now = new Date();
@@ -204,7 +185,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <>
       {/* Balance hero */}
-      <div className="ios-kpi-card primary" onClick={() => onNavigate?.('transactions')} style={{ cursor: 'pointer' }}>
+      <div
+        className="ios-kpi-card primary"
+        role="button"
+        tabIndex={0}
+        onClick={() => onNavigate?.('transactions')}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate?.('transactions'); } }}
+        style={{ cursor: 'pointer' }}
+      >
         <div className="ios-kpi-header">
           <span className="ios-kpi-label">Saldo Total</span>
           <div className="ios-kpi-icon" style={{ background: 'rgba(48, 209, 88, 0.2)' }}>
@@ -221,7 +209,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* KPI Grid */}
       <div className="ios-kpi-grid">
-        <div className="ios-kpi-card" onClick={() => onNavigate?.(profession === 'motorista' ? 'transactions-uber99' : profession === 'vendedor' ? 'vendas' : 'entradas')} style={{ cursor: 'pointer' }}>
+        <div
+          className="ios-kpi-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => onNavigate?.(profession === 'motorista' ? 'transactions-uber99' : profession === 'vendedor' ? 'vendas' : 'entradas')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onNavigate?.(profession === 'motorista' ? 'transactions-uber99' : profession === 'vendedor' ? 'vendas' : 'entradas');
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="ios-kpi-header">
             <span className="ios-kpi-label">{profession === 'motorista' ? 'Ganhos do Mês' : profession === 'vendedor' ? 'Vendas do Mês' : 'Receita Mensal'}</span>
             <ArrowUpRight size={14} color="#30d158" />
@@ -234,7 +234,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="ios-kpi-card" onClick={() => onNavigate?.('saidas')} style={{ cursor: 'pointer' }}>
+        <div
+          className="ios-kpi-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => onNavigate?.('saidas')}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate?.('saidas'); } }}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="ios-kpi-header">
             <span className="ios-kpi-label">{profession === 'motorista' ? 'Custos do Mês' : profession === 'vendedor' ? 'Custos do Mês' : 'Despesa Mensal'}</span>
             <ArrowDownRight size={14} color="#ff453a" />
@@ -368,7 +375,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Budget progress */}
       <div className="ios-card">
-        <div className="ios-card-body" onClick={() => onNavigate?.('metas')} style={{ cursor: 'pointer' }}>
+        <div
+          className="ios-card-body"
+          role="button"
+          tabIndex={0}
+          onClick={() => onNavigate?.('metas')}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate?.('metas'); } }}
+          style={{ cursor: 'pointer' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TargetIcon size={16} color="var(--color-meta)" />
@@ -419,7 +433,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div
             key={t.id}
             className="ios-list-item"
+            role="button"
+            tabIndex={0}
             onClick={() => onNavigate?.('transactions')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate?.('transactions'); } }}
           >
             <div className="ios-list-item-icon" style={{
               background: t.type === 'income' ? 'var(--color-income-bg)' : 'var(--color-expense-bg)',

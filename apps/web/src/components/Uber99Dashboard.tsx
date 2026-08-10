@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { parseNumber } from '../utils';
+import { parseNumber, parseLocalDate } from '../utils';
 import {
   Car,
   DollarSign,
@@ -15,9 +15,6 @@ import {
   ChevronDown,
   Star,
   Zap,
-  Target,
-  ArrowUpRight,
-  BarChart3,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -56,10 +53,22 @@ const fmt = (v: number) =>
 
 const pct = (v: number) => `${v > 0 ? '+' : ''}${v}%`;
 
-// ── Component ────────────────────────────────────────────
-export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }) => {
-  const [period, setPeriod] = useState('Este mês');
+  // ── Component ────────────────────────────────────────────
+  export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }) => {
+  const [period, setPeriod] = useState<'Este mês' | 'Últimos 30 dias'>('Este mês');
   const [evoView, setEvoView] = useState<'Diário' | 'Semanal'>('Diário');
+
+  const rangeLabel = useMemo(() => {
+    const now = new Date();
+    if (period === 'Últimos 30 dias') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+      const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return `${fmt(start)} – ${fmt(now)}`;
+    }
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return `${first.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} – ${last.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+  }, [period]);
 
   // ── 1. Filter Uber/99 transactions ─────────────────────
   const uberTransactions = useMemo(() => {
@@ -79,18 +88,45 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
 
   // ── 2. KPI Calculations ────────────────────────────────
   const kpis = useMemo(() => {
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+    const prev = new Date(thisYear, thisMonth - 1, 1);
+    const prevMonth = prev.getMonth();
+    const prevYear = prev.getFullYear();
+
     let grossIncome = 0;
     let costs = 0;
+    let prevGrossIncome = 0;
+    let prevCosts = 0;
 
     uberTransactions.forEach((t) => {
-      const amt = Math.abs(parseNumber(t.amount));
-      if (t.type === 'income') grossIncome += amt;
-      else costs += amt;
+      const d = parseLocalDate(t.date);
+      if (!Number.isNaN(d.getTime())) {
+        const isThisMonth = d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        const isPrevMonth = d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+        const amt = Math.abs(parseNumber(t.amount));
+        if (t.type === 'income') {
+          if (isThisMonth) grossIncome += amt;
+          if (isPrevMonth) prevGrossIncome += amt;
+        } else {
+          if (isThisMonth) costs += amt;
+          if (isPrevMonth) prevCosts += amt;
+        }
+      }
     });
 
     const netIncome = grossIncome - costs;
+    const prevNetIncome = prevGrossIncome - prevCosts;
     const hoursWorked = Math.round(grossIncome / 48.57); // avg ~R$48.57/h
+    const prevHoursWorked = Math.round(prevGrossIncome / 48.57);
     const daysWorked = Math.round(hoursWorked / 5.25); // ~5.25h/day avg
+    const prevDaysWorked = Math.round(prevHoursWorked / 5.25);
+
+    const trend = (current: number, previous: number) => {
+      if (previous <= 0) return 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
 
     return {
       netIncome,
@@ -98,11 +134,11 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
       costs,
       hoursWorked,
       daysWorked,
-      netTrend: 12,
-      grossTrend: 15,
-      costTrend: -8,
-      hoursTrend: 10,
-      daysTrend: 4,
+      netTrend: trend(netIncome, prevNetIncome),
+      grossTrend: trend(grossIncome, prevGrossIncome),
+      costTrend: trend(costs, prevCosts),
+      hoursTrend: trend(hoursWorked, prevHoursWorked),
+      daysTrend: trend(daysWorked, prevDaysWorked),
     };
   }, [uberTransactions]);
 
@@ -118,7 +154,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
     }
 
     uberTransactions.forEach((t) => {
-      const day = new Date(t.date).getDate();
+      const day = parseLocalDate(t.date).getDate();
       const idx = Math.min(Math.floor((day - 1) / 5), data.length - 1);
       const amt = Math.abs(parseNumber(t.amount));
       const desc = t.description.toLowerCase();
@@ -217,7 +253,7 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
 
     uberTransactions.forEach((t) => {
       if (t.type !== 'income') return;
-      const dow = (new Date(t.date).getDay() + 6) % 7; // Mon=0
+      const dow = (parseLocalDate(t.date).getDay() + 6) % 7; // Mon=0
       const amt = Math.abs(parseNumber(t.amount));
       const desc = t.description.toLowerCase();
       if (desc.includes('99')) ninetyByDay[dow] += amt;
@@ -317,21 +353,26 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
             backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)',
             borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.85rem',
             fontSize: '0.78rem', fontWeight: 600, color: '#fff',
-            display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
           }}>
             <Calendar size={14} />
-            <span>01/05/2024 – 31/05/2024</span>
+            <span>{rangeLabel}</span>
           </div>
           {/* Period Selector */}
-          <div style={{
-            backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.85rem',
-            fontSize: '0.78rem', fontWeight: 600, color: '#fff',
-            display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
-          }} onClick={() => setPeriod(period === 'Este mês' ? 'Últimos 30 dias' : 'Este mês')}>
+          <button
+            type="button"
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.85rem',
+              fontSize: '0.78rem', fontWeight: 600, color: '#fff', fontFamily: 'var(--font-body)',
+              display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
+            }}
+            onClick={() => setPeriod(period === 'Este mês' ? 'Últimos 30 dias' : 'Este mês')}
+            aria-label="Alterar período"
+          >
             <span>{period}</span>
             <ChevronDown size={14} />
-          </div>
+          </button>
         </div>
       </div>
 
@@ -824,77 +865,6 @@ export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }
           ))}
         </div>
       </div>
-
-      {/* ── Responsive Overrides ───────────────────────── */}
-      <style>{`
-        .uber99-root { width: 100%; max-width: 100%; overflow-x: hidden; }
-        .uber99-root * { min-width: 0; }
-
-        /* ── Tablet / laptop pequeno ───────────────────── */
-        @media (max-width: 1280px) {
-          .uber99-kpi-row { grid-template-columns: repeat(3, 1fr) !important; }
-          .uber99-mid-row { grid-template-columns: 1fr 1fr !important; }
-          .uber99-mid-row > *:first-child { grid-column: 1 / -1; }
-        }
-
-        @media (max-width: 980px) {
-          .uber99-kpi-row { grid-template-columns: repeat(2, 1fr) !important; }
-          .uber99-mid-row,
-          .uber99-bottom-row { grid-template-columns: 1fr !important; }
-          .uber99-goals-grid { grid-template-columns: 1fr 1fr !important; gap: 1.25rem !important; }
-        }
-
-        /* ── Mobile ────────────────────────────────────── */
-        @media (max-width: 640px) {
-          .uber99-root { gap: 1rem !important; }
-
-          /* Header empilhado */
-          .uber99-header { flex-direction: column; align-items: flex-start !important; gap: 0.75rem !important; }
-          .uber99-header h1 { font-size: 1.35rem !important; }
-          .uber99-header p { font-size: 0.75rem !important; }
-          .uber99-header > div:last-child {
-            width: 100%;
-            display: grid !important;
-            grid-template-columns: 1fr auto;
-            gap: 0.5rem !important;
-          }
-          .uber99-header > div:last-child > div { justify-content: center; font-size: 0.72rem !important; padding: 0.5rem 0.6rem !important; }
-
-          /* KPIs: 2 colunas compactas em vez de 5 */
-          .uber99-kpi-row { grid-template-columns: repeat(2, 1fr) !important; gap: 0.65rem !important; }
-          .uber99-kpi-card { padding: 0.85rem !important; min-height: 108px !important; gap: 0.4rem; }
-          .uber99-kpi-card span { font-size: 0.68rem !important; }
-          .uber99-kpi-value { font-size: 1.15rem !important; word-break: break-word; }
-          .uber99-kpi-badge { font-size: 0.6rem !important; padding: 0.15rem 0.4rem !important; }
-          /* último KPI ocupa a linha inteira quando sobra sozinho */
-          .uber99-kpi-row > .uber99-kpi-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
-
-          /* Cards em geral: menos padding */
-          .uber99-mid-row > div,
-          .uber99-bottom-row > div,
-          .uber99-root > div[style*="radius-lg"] { padding: 1rem !important; }
-
-          /* Gráficos mais baixos e sem corte */
-          .uber99-chart { height: 190px !important; }
-
-          /* Metas empilhadas */
-          .uber99-goals-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
-
-          /* Cards de insight lado a lado permanecem, só encolhem */
-          .uber99-insight-cards { gap: 0.65rem !important; }
-          .uber99-insight-cards > div { padding: 0.6rem !important; }
-
-          h3 { font-size: 0.92rem !important; }
-        }
-
-        /* ── Telas muito estreitas (<=380px) ───────────── */
-        @media (max-width: 380px) {
-          .uber99-kpi-row { grid-template-columns: 1fr !important; }
-          .uber99-kpi-card { min-height: auto !important; }
-          .uber99-insight-cards { grid-template-columns: 1fr !important; }
-          .uber99-chart { height: 170px !important; }
-        }
-      `}</style>
     </div>
   );
 };

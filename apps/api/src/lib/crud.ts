@@ -1,7 +1,8 @@
-import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import { createRoute, z, type OpenAPIHono } from '@hono/zod-openapi';
 import { getDb, getUserId } from './request-context.js';
 import type { AppEnv } from './request-context.js';
 import { dbErrorHandler } from './errors.js';
+import { createApiApp } from './hono.js';
 import { ErrorResponseSchema } from '../schemas/index.js';
 
 const ID_PARAM = z.object({ id: z.string().uuid() });
@@ -32,7 +33,7 @@ export interface ResourceOptions {
   createSchema: z.ZodTypeAny;
   rowSchema: z.ZodTypeAny;
   updateSchema?: z.ZodTypeAny;
-  listQuerySchema?: z.ZodObject<any, any, any>;
+  listQuerySchema?: z.ZodObject<z.ZodRawShape>;
 
   /** Colunas selecionadas na listagem (default '*'). */
   listSelect?: string;
@@ -81,7 +82,7 @@ export function defineResource(options: ResourceOptions): OpenAPIHono<AppEnv> {
     withDelete = true,
   } = options;
 
-  const app = new OpenAPIHono<AppEnv>();
+  const app = createApiApp();
 
   const listRoute = createRoute({
     method: 'get',
@@ -113,12 +114,13 @@ export function defineResource(options: ResourceOptions): OpenAPIHono<AppEnv> {
 
     if (filterQueryField) {
       const value = q[filterQueryField];
-      if (value) query = query.eq(filterQueryField, value);
+      // Filtra apenas quando o valor é de fato definido (0/'' são válidos).
+      if (value !== undefined && value !== null) query = query.eq(filterQueryField, value);
     }
 
     if (pagination) {
-      const from = Number(q.from ?? 0);
-      const limit = Number(q.limit ?? 1000);
+      const from = Math.max(0, Number(q.from ?? 0));
+      const limit = Math.min(1000, Math.max(1, Number(q.limit ?? 1000)));
       query = query.range(from, from + limit - 1);
     }
 
@@ -156,10 +158,18 @@ export function defineResource(options: ResourceOptions): OpenAPIHono<AppEnv> {
 
   app.openapi(createRouteSpec, async (c) => {
     const db = getDb(c);
-    let payload = c.req.valid('json') as Record<string, unknown>;
+    const raw = c.req.valid('json') as Record<string, unknown>;
+    const userId = getUserId(c);
 
-    if (setCreatedBy) {
-      payload = { ...payload, created_by: getUserId(c) };
+    let payload: Record<string, unknown> | Record<string, unknown>[];
+    if (bulkCreate) {
+      const items = Array.isArray(raw) ? raw : [raw];
+      payload = setCreatedBy
+        ? items.map((item) => ({ ...item, created_by: userId }))
+        : items;
+    } else {
+      const item = Array.isArray(raw) ? raw[0] ?? {} : raw;
+      payload = setCreatedBy ? { ...item, created_by: userId } : item;
     }
 
     const query = bulkCreate
@@ -187,6 +197,14 @@ export function defineResource(options: ResourceOptions): OpenAPIHono<AppEnv> {
           content: { 'application/json': { schema: rowSchema } },
           description: 'Recurso atualizado com sucesso',
         },
+        400: {
+          content: { 'application/json': { schema: ErrorResponseSchema } },
+          description: 'Dados de entrada inválidos ou body vazio',
+        },
+        404: {
+          content: { 'application/json': { schema: ErrorResponseSchema } },
+          description: 'Recurso não encontrado',
+        },
         500: {
           content: { 'application/json': { schema: ErrorResponseSchema } },
           description: 'Erro ao atualizar o recurso',
@@ -198,6 +216,10 @@ export function defineResource(options: ResourceOptions): OpenAPIHono<AppEnv> {
       const db = getDb(c);
       const { id } = c.req.valid('param');
       let body = c.req.valid('json') as Record<string, unknown>;
+
+      if (!body || Object.keys(body).length === 0) {
+        return c.json({ error: 'Body vazio: informe ao menos um campo' }, 400);
+      }
 
       if (setUpdatedAt) {
         body = { ...body, updated_at: new Date().toISOString() };
@@ -246,24 +268,22 @@ export function defineResource(options: ResourceOptions): OpenAPIHono<AppEnv> {
         .select('id')
         .maybeSingle();
       if (error) return dbErrorHandler(error);
-      if (!deleted) return c.json({ error: `${labels.entity} não encontrado` }, 404);
+      if (!deleted) return c.json({ error: 'Registro não encontrado' }, 404);
 
-      return c.json({ success: true, message: `${labels.entity} removido com sucesso` }, 200);
+      return c.json({ success: true, message: 'Registro removido com sucesso' }, 200);
     });
   }
 
   return app;
 }
 
-// Referência de tipos auxiliares exportados para uso em schemas de query.
-export type ListQuery = { family_id?: string; from?: number; limit?: number };
+// Referência de schemas de query reutilizados pelas rotas de listagem.
 export const ListQuerySchema = z.object({
   family_id: z.string().uuid().optional(),
-  from: z.coerce.number().int().min(0).optional().default(0),
-  limit: z.coerce.number().int().min(1).max(1000).optional().default(1000),
+  from: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(1000).default(1000),
 });
 
-export type ListQueryFilterable = { family_id?: string };
 export const ListQueryFilterableSchema = z.object({
   family_id: z.string().uuid().optional(),
 });

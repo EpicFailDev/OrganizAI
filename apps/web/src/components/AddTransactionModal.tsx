@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { api } from '../lib/apiClient';
 import { parseNumber } from '../utils';
@@ -98,6 +98,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const [uploading, setUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Sincroniza descriptionTouched num ref para leitura dentro de efeitos cujo
+  // gatilho é apenas categoryId (evita re-execução ao resetar o próprio estado).
+  const descriptionTouchedRef = useRef(descriptionTouched);
+  descriptionTouchedRef.current = descriptionTouched;
+
   const filteredCategories = useMemo(() => {
     return categories.filter(c => c.type === type);
   }, [categories, type]);
@@ -133,7 +138,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     setSubcategoryId('');
     resetSmartFields();
     setAmountTouched(false);
-    if (!descriptionTouched) setDescription('');
+    if (!descriptionTouchedRef.current) setDescription('');
     setDescriptionTouched(false);
   }, [categoryId]);
 

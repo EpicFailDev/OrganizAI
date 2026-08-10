@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { AppError } from './errors.js';
+import { AppError, UNAUTHENTICATED_MESSAGE } from './errors.js';
 
 /**
  * Variáveis injetadas no contexto de cada request.
@@ -28,7 +28,7 @@ export function getDb(c: { get: (key: 'supabase') => SupabaseClient }): Supabase
 export function getUserId(c: { get: (key: 'userId') => string | undefined }): string {
   const userId = c.get('userId');
   if (!userId) {
-    throw new AppError(401, 'Não autenticado: informe um token JWT válido no header Authorization');
+    throw new AppError(401, UNAUTHENTICATED_MESSAGE);
   }
   return userId;
 }

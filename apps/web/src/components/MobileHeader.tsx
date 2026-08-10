@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Settings, User } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 interface MobileHeaderProps {
   title: string;

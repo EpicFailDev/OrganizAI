@@ -1,6 +1,6 @@
-import { OpenAPIHono, z } from '@hono/zod-openapi';
+import { z } from '@hono/zod-openapi';
 import { defineResource } from '../../lib/crud.js';
-import type { AppEnv } from '../../lib/request-context.js';
+import { createApiApp } from '../../lib/hono.js';
 import {
   CategorySchema,
   CreateCategorySchema,
@@ -8,7 +8,7 @@ import {
   CreateSubcategorySchema,
 } from '../../schemas/index.js';
 
-const categoriesApp = new OpenAPIHono<AppEnv>();
+const categoriesApp = createApiApp();
 
 categoriesApp.route(
   '/',

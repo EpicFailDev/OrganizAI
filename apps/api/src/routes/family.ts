@@ -1,7 +1,7 @@
-import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import { createRoute, z } from '@hono/zod-openapi';
 import { getDb, getUserId } from '../lib/request-context.js';
-import type { AppEnv } from '../lib/request-context.js';
 import { dbErrorHandler } from '../lib/errors.js';
+import { createApiApp } from '../lib/hono.js';
 import {
   ProfileSchema,
   MyFamilySchema,
@@ -10,7 +10,7 @@ import {
   ErrorResponseSchema,
 } from '../schemas/index.js';
 
-const familyApp = new OpenAPIHono<AppEnv>();
+const familyApp = createApiApp();
 
 const UUID_PARAM = z.object({ userId: z.string().uuid() });
 
@@ -62,11 +62,13 @@ const updateProfileRoute = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: z.object({
-            display_name: z.string().min(1).optional(),
-            profession: z.string().nullable().optional(),
-            avatar_url: z.string().nullable().optional(),
-          }),
+          schema: z
+            .object({
+              display_name: z.string().min(1).optional(),
+              profession: z.string().nullable().optional(),
+              avatar_url: z.string().nullable().optional(),
+            })
+            .refine((v) => Object.keys(v).length > 0, { message: 'Body vazio: informe ao menos um campo' }),
         },
       },
     },
@@ -79,6 +81,10 @@ const updateProfileRoute = createRoute({
     403: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Só é permitido alterar o próprio perfil',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Perfil não encontrado',
     },
     500: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
@@ -186,13 +192,17 @@ const createFamilyRoute = createRoute({
   description: 'Cria um novo grupo familiar e insere o usuário logado como administrador.',
   request: {
     body: {
-      content: { 'application/json': { schema: z.object({ name: z.string().min(1) }) } },
+      content: { 'application/json': { schema: z.object({ name: z.string().trim().min(1).max(100) }) } },
     },
   },
   responses: {
     201: {
       content: { 'application/json': { schema: z.object({ family_id: z.string().uuid() }) } },
       description: 'Grupo familiar criado com sucesso',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Dados de entrada inválidos',
     },
     500: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
@@ -207,6 +217,7 @@ familyApp.openapi(createFamilyRoute, async (c) => {
 
   const { data, error } = await db.rpc('create_family', { p_name: name });
   if (error) return dbErrorHandler(error);
+  if (!data) return c.json({ error: 'Falha ao criar grupo familiar' }, 500);
 
   return c.json({ family_id: data }, 201);
 });
@@ -219,7 +230,11 @@ const joinFamilyRoute = createRoute({
   description: 'Ingressa em um grupo familiar existente via código de convite.',
   request: {
     body: {
-      content: { 'application/json': { schema: z.object({ invite_code: z.string().min(1) }) } },
+      content: {
+        'application/json': {
+          schema: z.object({ invite_code: z.string().trim().length(8).regex(/^[A-Z0-9]+$/) }),
+        },
+      },
     },
   },
   responses: {
@@ -230,6 +245,10 @@ const joinFamilyRoute = createRoute({
     400: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Código de convite inválido ou usuário já é membro',
+    },
+    409: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Usuário já é membro do grupo',
     },
     500: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
@@ -262,6 +281,10 @@ const leaveFamilyRoute = createRoute({
       content: { 'application/json': { schema: z.object({ success: z.boolean(), message: z.string() }) } },
       description: 'Membro removido com sucesso',
     },
+    404: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Associação não encontrada',
+    },
     500: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao remover membro',
@@ -273,12 +296,15 @@ familyApp.openapi(leaveFamilyRoute, async (c) => {
   const db = getDb(c);
   const { familyId, profileId } = c.req.valid('param');
 
-  const { error } = await db
+  const { data: deleted, error } = await db
     .from('family_members')
     .delete()
     .eq('family_id', familyId)
-    .eq('profile_id', profileId);
+    .eq('profile_id', profileId)
+    .select('profile_id')
+    .maybeSingle();
   if (error) return dbErrorHandler(error);
+  if (!deleted) return c.json({ error: 'Associação não encontrada' }, 404);
 
   return c.json({ success: true, message: 'Membro removido do grupo' }, 200);
 });
@@ -294,6 +320,10 @@ const getFamilyRoute = createRoute({
     200: {
       content: { 'application/json': { schema: FamilyGroupSchema } },
       description: 'Grupo familiar recuperado com sucesso',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Grupo familiar não encontrado',
     },
     500: {
       content: { 'application/json': { schema: ErrorResponseSchema } },

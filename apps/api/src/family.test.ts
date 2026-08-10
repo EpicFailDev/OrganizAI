@@ -104,11 +104,21 @@ describe('Rotas /v1/me e /v1/family', () => {
     const res = await request(app, '/v1/family/join', {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invite_code: 'ABCDE' }),
+      body: JSON.stringify({ invite_code: 'ABCDEF12' }),
     });
     expect(res.status).toBe(200);
     const call = state.calls.find((c) => c.type === 'rpc' && c.fn === 'join_family');
-    expect(call?.args).toEqual({ p_invite_code: 'ABCDE' });
+    expect(call?.args).toEqual({ p_invite_code: 'ABCDEF12' });
+  });
+
+  it('rejeita código de convite com formato inválido (400)', async () => {
+    const res = await request(app, '/v1/family/join', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite_code: 'AB12' }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Dados de entrada inválidos');
   });
 
   it('propaga erro de código inválido como 400 (P0001)', async () => {
@@ -123,7 +133,7 @@ describe('Rotas /v1/me e /v1/family', () => {
   });
 
   it('remove um membro da família', async () => {
-    state.tables.family_members = ok();
+    state.tables.family_members = ok({ profile_id: OTHER_USER });
     const res = await request(app, `/v1/family/${FAMILY}/members/${OTHER_USER}`, {
       method: 'DELETE',
       headers: authHeaders(),

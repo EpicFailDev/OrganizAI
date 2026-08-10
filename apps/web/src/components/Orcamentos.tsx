@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../lib/apiClient';
-import { parseNumber } from '../utils';
+import { parseNumber, parseLocalDate } from '../utils';
 import { Receipt, Plus, Trash2, TrendingUp, TrendingDown, X } from 'lucide-react';
 
 interface Category {
@@ -40,7 +40,6 @@ const fmt = (v: number) =>
 
 export const Orcamentos: React.FC<OrcamentosProps> = ({ familyId, categories, transactions }) => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newCategoryId, setNewCategoryId] = useState('');
   const [newLimit, setNewLimit] = useState('');
@@ -48,17 +47,15 @@ export const Orcamentos: React.FC<OrcamentosProps> = ({ familyId, categories, tr
 
   const expenseCategories = categories.filter((c) => c.type === 'expense');
 
-  const fetchBudgets = async () => {
+  const fetchBudgets = useCallback(async () => {
     if (!familyId) return;
-    setLoading(true);
     const { data } = await api.listBudgets(familyId);
     setBudgets(data || []);
-    setLoading(false);
-  };
+  }, [familyId]);
 
   useEffect(() => {
     fetchBudgets();
-  }, [familyId]);
+  }, [fetchBudgets]);
 
   // Calculate spent per category this month
   const spentByCategory = useMemo(() => {
@@ -66,7 +63,7 @@ export const Orcamentos: React.FC<OrcamentosProps> = ({ familyId, categories, tr
     const map: Record<string, number> = {};
     transactions.forEach((t) => {
       if (t.type !== 'expense') return;
-      const d = new Date(t.date);
+      const d = parseLocalDate(t.date);
       if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return;
       map[t.category_id] = (map[t.category_id] || 0) + Math.abs(parseNumber(t.amount));
     });

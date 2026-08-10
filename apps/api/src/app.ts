@@ -2,7 +2,8 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { apiReference } from '@scalar/hono-api-reference';
 
 import { config } from './config.js';
-import { AppError } from './lib/errors.js';
+import { AppError, UNAUTHENTICATED_MESSAGE } from './lib/errors.js';
+import { createApiApp } from './lib/hono.js';
 import { supabase, createUserClient } from './lib/supabase.js';
 import { rateLimit } from './lib/rate-limit.js';
 import type { AppEnv } from './lib/request-context.js';
@@ -43,7 +44,7 @@ export interface CreateAppOptions {
  * `app.fetch`) sem abrir porta de rede.
  */
 export function createApp(options: CreateAppOptions = {}): OpenAPIHono<AppEnv> {
-  const app = new OpenAPIHono<AppEnv>();
+  const app = createApiApp();
 
   // Middlewares globais: log, headers de segurança, compressão gzip, limite de
   // corpo e CORS.
@@ -55,7 +56,7 @@ export function createApp(options: CreateAppOptions = {}): OpenAPIHono<AppEnv> {
     bodyLimit({
       maxSize: config.bodyLimitBytes,
       onError: (c) =>
-        c.json({ error: `Corpo da requisição excede o limite de ${config.bodyLimitBytes / 1024 / 1024} MB` }, 413),
+        c.json({ error: `Corpo da requisição excede o limite de ${config.bodyLimitBytesMb} MB` }, 413),
     })
   );
   app.use('*', cors(config.cors));
@@ -77,7 +78,7 @@ export function createApp(options: CreateAppOptions = {}): OpenAPIHono<AppEnv> {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
 
     if (!token) {
-      return c.json({ error: 'Não autenticado: informe um token JWT válido no header Authorization' }, 401);
+      return c.json({ error: UNAUTHENTICATED_MESSAGE }, 401);
     }
 
     const { data, error } = await supabase.auth.getUser(token);

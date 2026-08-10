@@ -1,11 +1,58 @@
-const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-});
+const CURRENCY_LOCALE: Record<string, string> = {
+  BRL: 'pt-BR',
+  USD: 'en-US',
+  EUR: 'pt-PT',
+};
+
+const DEFAULT_CURRENCY = 'BRL';
+const SETTINGS_KEY = 'organizai.settings';
+
+function getActiveCurrency(): string {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && CURRENCY_LOCALE[parsed.currency]) return parsed.currency;
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return DEFAULT_CURRENCY;
+}
+
+export const ONBOARDING_KEY = 'organizai_onboarding_complete';
+
+export function isOnboardingComplete(): boolean {
+  return localStorage.getItem(ONBOARDING_KEY) === 'true';
+}
+
+let currencyFormatter: Intl.NumberFormat | null = null;
+let formatterCurrency: string | null = null;
 
 export function formatCurrency(value: number): string {
   const n = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  const currency = getActiveCurrency();
+  if (!currencyFormatter || formatterCurrency !== currency) {
+    currencyFormatter = new Intl.NumberFormat(CURRENCY_LOCALE[currency], {
+      style: 'currency',
+      currency,
+    });
+    formatterCurrency = currency;
+  }
   return currencyFormatter.format(n);
+}
+
+/**
+ * Converte uma data no formato `YYYY-MM-DD` para um `Date` LOCAL.
+ * `new Date("2026-08-10")` interpreta como meia-noite UTC, o que desloca
+ * o dia em -1 para fusos a oeste do meridiano (ex.: Brasil, UTC-3).
+ */
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d || Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) {
+    return new Date(NaN);
+  }
+  return new Date(y, m - 1, d);
 }
 
 /** Normaliza valores numéricos (como "1.500,50", "1500,50", "1500.50", 1500) para number */

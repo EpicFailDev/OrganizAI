@@ -21,7 +21,7 @@ export default defineResource({
     removeDescription: 'Exclui um item de recibo pelo seu UUID.',
   },
   listSchema: ReceiptItemSchema,
-  createSchema: z.array(CreateReceiptItemSchema),
+  createSchema: z.array(CreateReceiptItemSchema).min(1),
   rowSchema: ReceiptItemSchema,
   listQuerySchema: z.object({
     transaction_id: z.string().uuid().optional(),

@@ -30,16 +30,3 @@ export const UpdateProductSchema = z.object({
   unit: z.string().optional(),
   active: z.boolean().optional(),
 }).openapi('UpdateProduct');
-
-// ----------------------------------------------------
-// Calculadora de Preços (Ficha Técnica de Produtos)
-// ----------------------------------------------------
-export const ProductPricingSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().openapi({ example: 'Bolo de Pote Ninho com Nutella' }),
-  labor_hours: z.number().openapi({ example: 1.5 }),
-  hourly_rate: z.number().openapi({ example: 25.0 }),
-  desired_margin_percent: z.number().openapi({ example: 40.0 }),
-  final_price: z.number().openapi({ example: 18.50 }),
-  cost_total: z.number().openapi({ example: 8.20 }),
-}).openapi('ProductPricing');

@@ -56,7 +56,7 @@ mcpApp.all('/mcp', async (c) => {
   // Caso o cliente informe um sessionId que não conhecemos, responde 404
   // (recomeçar a sessão é responsabilidade do cliente).
   if (sessionId) {
-    return new Response('Sessão MCP não encontrada', { status: 404 });
+    return c.json({ error: 'Sessão MCP não encontrada' }, 404);
   }
 
   // Cliente Supabase escopado ao access token OAuth do request

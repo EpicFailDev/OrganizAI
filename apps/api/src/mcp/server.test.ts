@@ -79,7 +79,7 @@ describe('Ferramentas MCP', () => {
       total_expenses: 150,
       total_income: 300,
       net_balance: 150,
-      total_transactions: 3,
+      transactions_count: 3,
     });
     await client.close();
   });

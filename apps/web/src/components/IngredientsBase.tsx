@@ -10,7 +10,7 @@ import {
   Package
 } from 'lucide-react';
 import { api } from '../lib/apiClient';
-import { parseNumber } from '../utils';
+import { parseNumber, formatCurrency } from '../utils';
 
 interface IngredientRow {
   id: string;
@@ -26,9 +26,6 @@ interface IngredientsBaseProps {
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 /**
  * TABELA 1 - BASE · Custo dos Ingredientes
@@ -353,30 +350,6 @@ export const IngredientsBase: React.FC<IngredientsBaseProps> = ({ familyId }) =>
         </div>
       )}
 
-      {/* Estilo das células azuis (igual à planilha) */}
-      <style>{`
-        .ing-base-cell {
-          background: #e3f2fd !important;
-          border: 1px solid #2196f3 !important;
-          padding: 0.5rem !important;
-          text-align: center !important;
-          font-family: 'Arial', sans-serif !important;
-          font-size: 0.85rem !important;
-          border-radius: 4px !important;
-          transition: all 0.2s !important;
-          color: #333 !important;
-          width: 100%;
-          box-sizing: border-box;
-        }
-        .ing-base-cell:focus {
-          outline: none !important;
-          box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3) !important;
-          background: #bbdefb !important;
-        }
-        input.ing-base-cell[type="text"] {
-          text-align: left !important;
-        }
-      `}</style>
     </div>
   );
 };

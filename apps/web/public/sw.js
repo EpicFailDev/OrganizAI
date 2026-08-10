@@ -1,4 +1,3 @@
-const CACHE_NAME = 'organizai-v1';
 const STATIC_CACHE = 'organizai-static-v1';
 const DYNAMIC_CACHE = 'organizai-dynamic-v1';
 

@@ -1190,7 +1190,7 @@ body {
 }
 
 /* ============================================================
-   LEGACY COMPAT CLASSES — used by Sidebar, ProfileSelector,
+   LEGACY COMPAT CLASSES — used by Sidebar,
    Calendario, Metas, CategoryManager, FamilySettings,
    Planejamento, Orcamentos, Auth, Uber99Dashboard
    ============================================================ */
@@ -1732,6 +1732,126 @@ body {
 
 .ios-title-anim {
   animation: iosTitleIn 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+/* ==========================================================================
+   Component-specific styles (were inline <style> blocks in components)
+   ========================================================================== */
+
+/* Sidebar: mobile-only toggle visibility */
+@media (min-width: 1025px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* IngredientsBase / PricingCalculator: Excel-like cells */
+.ing-base-cell {
+  background: #e3f2fd !important;
+  border: 1px solid #2196f3 !important;
+  padding: 0.5rem !important;
+  text-align: center !important;
+  font-family: 'Arial', sans-serif !important;
+  font-size: 0.85rem !important;
+  border-radius: 4px !important;
+  transition: all 0.2s !important;
+  color: #333 !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+.ing-base-cell:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3) !important;
+  background: #bbdefb !important;
+}
+input.ing-base-cell[type="text"] {
+  text-align: left !important;
+}
+
+.excel-input-cell {
+  background: #e3f2fd !important;
+  border: 1px solid #2196f3 !important;
+  padding: 0.5rem !important;
+  text-align: center !important;
+  font-family: 'Arial', sans-serif !important;
+  font-size: 0.85rem !important;
+  border-radius: 4px !important;
+  transition: all 0.2s !important;
+  color: #333 !important;
+}
+.excel-input-cell:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3) !important;
+  background: #bbdefb !important;
+}
+.excel-readonly-cell {
+  background: rgba(255,255,255,0.05) !important;
+  padding: 0.5rem !important;
+  text-align: center !important;
+  font-family: 'Arial', sans-serif !important;
+  font-size: 0.85rem !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 4px !important;
+  color: var(--text-primary) !important;
+}
+
+/* Uber99Dashboard: responsive overrides */
+.uber99-root { width: 100%; max-width: 100%; overflow-x: hidden; }
+.uber99-root * { min-width: 0; }
+
+@media (max-width: 1280px) {
+  .uber99-kpi-row { grid-template-columns: repeat(3, 1fr) !important; }
+  .uber99-mid-row { grid-template-columns: 1fr 1fr !important; }
+  .uber99-mid-row > *:first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 980px) {
+  .uber99-kpi-row { grid-template-columns: repeat(2, 1fr) !important; }
+  .uber99-mid-row,
+  .uber99-bottom-row { grid-template-columns: 1fr !important; }
+  .uber99-goals-grid { grid-template-columns: 1fr 1fr !important; gap: 1.25rem !important; }
+}
+
+@media (max-width: 640px) {
+  .uber99-root { gap: 1rem !important; }
+
+  .uber99-header { flex-direction: column; align-items: flex-start !important; gap: 0.75rem !important; }
+  .uber99-header h1 { font-size: 1.35rem !important; }
+  .uber99-header p { font-size: 0.75rem !important; }
+  .uber99-header > div:last-child {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem !important;
+  }
+  .uber99-header > div:last-child > div { justify-content: center; font-size: 0.72rem !important; padding: 0.5rem 0.6rem !important; }
+
+  .uber99-kpi-row { grid-template-columns: repeat(2, 1fr) !important; gap: 0.65rem !important; }
+  .uber99-kpi-card { padding: 0.85rem !important; min-height: 108px !important; gap: 0.4rem; }
+  .uber99-kpi-card span { font-size: 0.68rem !important; }
+  .uber99-kpi-value { font-size: 1.15rem !important; word-break: break-word; }
+  .uber99-kpi-badge { font-size: 0.6rem !important; padding: 0.15rem 0.4rem !important; }
+  .uber99-kpi-row > .uber99-kpi-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  .uber99-mid-row > div,
+  .uber99-bottom-row > div,
+  .uber99-root > div[style*="radius-lg"] { padding: 1rem !important; }
+
+  .uber99-chart { height: 190px !important; }
+
+  .uber99-goals-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+
+  .uber99-insight-cards { gap: 0.65rem !important; }
+  .uber99-insight-cards > div { padding: 0.6rem !important; }
+
+  h3 { font-size: 0.92rem !important; }
+}
+
+@media (max-width: 380px) {
+  .uber99-kpi-row { grid-template-columns: 1fr !important; }
+  .uber99-kpi-card { min-height: auto !important; }
+  .uber99-insight-cards { grid-template-columns: 1fr !important; }
+  .uber99-chart { height: 170px !important; }
 }
 
 

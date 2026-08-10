@@ -153,23 +153,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           Trocar de Perfil
         </button>
       </aside>
-
-      <style>{`
-        @media (min-width: 1025px) {
-          .mobile-only {
-            display: none !important;
-          }
-        }
-        @media (max-width: 1024px) {
-          .sidebar {
-            width: 280px;
-            transform: translateX(-100%);
-          }
-          .sidebar.open {
-            transform: translateX(0);
-          }
-        }
-      `}</style>
     </>
   );
 };

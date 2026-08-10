@@ -13,7 +13,7 @@ export const GoalSchema = z.object({
   deadline: isoDate().nullable().optional().openapi({ example: '2026-12-31' }),
   icon: z.string().nullable().optional(),
   color: z.string().nullable().optional(),
-  status: z.string().optional(),
+  status: z.enum(['active', 'completed', 'cancelled']).openapi({ example: 'active' }),
   created_at: z.string().optional(),
 }).openapi('Goal');
 

@@ -47,6 +47,10 @@ const getRecipeRoute = createRoute({
       content: { 'application/json': { schema: PricingRecipeSchema } },
       description: 'Receita recuperada com sucesso',
     },
+    404: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Receita não encontrada',
+    },
     500: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Erro ao buscar receita',

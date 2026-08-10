@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../lib/apiClient';
 import { X, Edit3, Trash2, Save, Loader2, ArrowLeft } from 'lucide-react';
-import { formatCurrency, parseNumber } from '../utils';
+import { formatCurrency, parseNumber, parseLocalDate } from '../utils';
 import { useSignedAttachmentUrl } from '../lib/storage';
 
 interface Transaction {
@@ -57,7 +57,6 @@ interface TransactionUpdate {
 interface TransactionDetailModalProps {
   transaction: Transaction;
   categories: Category[];
-  familyId?: string;
   userId?: string;
   onClose: () => void;
   onUpdate: (id: string, updates: TransactionUpdate) => Promise<void>;
@@ -67,7 +66,6 @@ interface TransactionDetailModalProps {
 export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   transaction,
   categories,
-  familyId,
   userId,
   onClose,
   onUpdate,
@@ -122,7 +120,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     if (!isEditing && subcategories.length > 0 && transaction.subcategory_id) {
       setSubcategoryId(transaction.subcategory_id);
     }
-  }, [isEditing]);
+  }, [isEditing, subcategories.length, transaction.subcategory_id]);
 
   const handleCancelEdit = () => {
     setDate(transaction.date || '');
@@ -329,7 +327,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
               {/* Info rows */}
               <div className="ios-grouped-list" style={{ marginBottom: '1rem' }}>
-                {infoRow('Data', new Date(transaction.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }))}
+                {infoRow('Data', parseLocalDate(transaction.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }))}
                 {infoRow('Horário', transaction.time || '—')}
                 {infoRow('Categoria', (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>

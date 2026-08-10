@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   User,
   Users,
@@ -19,7 +19,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { api } from '../lib/apiClient';
-import { useAppSettings, type ThemeMode, type CurrencyCode } from '../AppSettings';
+import { useAppSettings, type ThemeMode, type CurrencyCode } from '../useAppSettings';
 import { CategoryManager } from './CategoryManager';
 import { FamilySettings } from './FamilySettings';
 
@@ -31,6 +31,7 @@ interface SettingsProps {
   initialProfession?: string;
   familyId: string | null;
   familyName: string;
+  inviteCode?: string | null;
   userId: string;
   onRefreshProfile: () => Promise<void>;
   onRefreshFamily: () => Promise<void>;
@@ -51,6 +52,7 @@ export const Settings: React.FC<SettingsProps> = ({
   initialProfession,
   familyId,
   familyName,
+  inviteCode,
   userId,
   onRefreshProfile,
   onRefreshFamily,
@@ -64,6 +66,13 @@ export const Settings: React.FC<SettingsProps> = ({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const savedTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
+  }, []);
 
   const { theme, setTheme, currency, setCurrency, notifications, setNotifications } = useAppSettings();
 
@@ -112,7 +121,8 @@ export const Settings: React.FC<SettingsProps> = ({
       if (error) throw error;
       setSaved(true);
       await onRefreshProfile();
-      setTimeout(() => setSaved(false), 2500);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = window.setTimeout(() => setSaved(false), 2500);
     } catch (err: any) {
       setErrorMsg(err.message || 'Erro ao salvar o perfil.');
     } finally {
@@ -213,6 +223,7 @@ export const Settings: React.FC<SettingsProps> = ({
           <FamilySettings
             familyId={familyId}
             familyName={familyName}
+            inviteCode={inviteCode}
             userId={userId}
             onRefreshFamily={onRefreshFamily}
           />

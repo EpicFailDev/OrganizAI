@@ -4,7 +4,6 @@ import {
   Package,
   ShoppingBag,
   BarChart3,
-  TrendingUp,
   TrendingDown,
   ShoppingCart,
   Plus,
@@ -16,7 +15,7 @@ import {
   Store
 } from 'lucide-react';
 import { api } from '../lib/apiClient';
-import { parseNumber } from '../utils';
+import { parseNumber, formatCurrency } from '../utils';
 import { PricingCalculator } from './PricingCalculator';
 import { IngredientsBase } from './IngredientsBase';
 
@@ -62,9 +61,6 @@ interface VendasProps {
 }
 
 type TabType = 'calculator' | 'base' | 'products' | 'sales' | 'reports';
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 const formatShortDate = (value: string) => {
   const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);

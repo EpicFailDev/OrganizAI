@@ -121,7 +121,7 @@ describe('CRUD /v1/transactions', () => {
       headers: authHeaders(),
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ success: true, message: 'Transação removido com sucesso' });
+    expect(await res.json()).toEqual({ success: true, message: 'Registro removido com sucesso' });
   });
 
   it('retorna 404 ao remover transação inexistente', async () => {
@@ -132,7 +132,7 @@ describe('CRUD /v1/transactions', () => {
     });
     expect(res.status).toBe(404);
     const body = await res.json();
-    expect(body.error).toBe('Transação não encontrado');
+    expect(body.error).toBe('Registro não encontrado');
   });
 
   it('mapeia erro de RLS para 403', async () => {

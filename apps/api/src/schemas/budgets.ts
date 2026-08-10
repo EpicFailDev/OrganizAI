@@ -9,7 +9,7 @@ export const BudgetSchema = z.object({
   family_id: z.string().uuid(),
   category_id: z.string().uuid(),
   limit_amount: z.number().openapi({ example: 1500.0 }),
-  period: z.string().optional().default('monthly'),
+  period: z.enum(['weekly', 'monthly', 'yearly']).openapi({ example: 'monthly' }),
   created_at: z.string().optional(),
   categories: CategoryRefSchema,
 }).openapi('Budget');

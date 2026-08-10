@@ -1,5 +1,12 @@
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
+/** Mensagem de erro de autenticação compartilhada por todos os middlewares. */
+export const UNAUTHENTICATED_MESSAGE =
+  'Não autenticado: informe um token JWT válido no header Authorization';
+
+/** Mensagem de erro de validação compartilhada (400 do defaultHook). */
+export const VALIDATION_ERROR_MESSAGE = 'Dados de entrada inválidos';
+
 /**
  * Erro de negócio com status HTTP explícito.
  *
@@ -48,12 +55,12 @@ export function toHttpError(error: { code?: string; message: string }): {
 
 /** Guard de tipo para erros vindos do PostgREST (possui code/message). */
 export function isPostgrestError(error: unknown): error is { code?: string; message: string } {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as { message: unknown }).message === 'string'
-  );
+  if (typeof error !== 'object' || error === null || !('message' in error)) return false;
+  const candidate = error as { code?: unknown; message: unknown };
+  if (typeof candidate.message !== 'string') return false;
+  // Ausência de code indica erro genérico (ex.: cliente Supabase) — não é um
+  // erro PostgREST mapeável, cai no 500 padrão.
+  return candidate.code === undefined || typeof candidate.code === 'string';
 }
 
 /**

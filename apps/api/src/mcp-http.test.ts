@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { createTestApp, request, authHeaders, type TestApp } from './test/helpers.js';
 import { resetSupabaseState, state, ok } from './test/supabase.js';
+import { resetRateLimit } from './lib/rate-limit.js';
 
 const INITIALIZE = JSON.stringify({
   jsonrpc: '2.0',
@@ -23,6 +24,7 @@ describe('Endpoint HTTP /mcp', () => {
 
   beforeEach(() => {
     resetSupabaseState();
+    resetRateLimit();
     app = createTestApp();
   });
 

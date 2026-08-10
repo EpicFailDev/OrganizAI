@@ -56,7 +56,7 @@ export function createMcpServer(
                   total_expenses: summary.total_expenses,
                   total_income: summary.total_income,
                   net_balance: summary.net_balance,
-                  total_transactions: summary.transactions_count,
+                  transactions_count: summary.transactions_count,
                 },
                 null,
                 2

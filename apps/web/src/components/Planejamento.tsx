@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/apiClient';
 import { parseNumber } from '../utils';
-import { BarChart3, Plus, Trash2, Check, X, Clock, ArrowUpRight, ArrowDownRight, Repeat } from 'lucide-react';
+import { BarChart3, Plus, Trash2, Check, X, ArrowUpRight, ArrowDownRight, Repeat } from 'lucide-react';
 
 interface Category {
   id: string;
@@ -37,7 +37,6 @@ const fmt = (v: number) =>
 
 export const Planejamento: React.FC<PlanejamentoProps> = ({ familyId, categories, userId }) => {
   const [items, setItems] = useState<PlanningItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newDesc, setNewDesc] = useState('');
   const [newType, setNewType] = useState<'income' | 'expense'>('expense');
@@ -49,17 +48,15 @@ export const Planejamento: React.FC<PlanejamentoProps> = ({ familyId, categories
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'cancelled'>('all');
   const [saving, setSaving] = useState(false);
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     if (!familyId) return;
-    setLoading(true);
     const { data } = await api.listPlanningItems(familyId);
     setItems(data || []);
-    setLoading(false);
-  };
+  }, [familyId]);
 
   useEffect(() => {
     fetchItems();
-  }, [familyId]);
+  }, [fetchItems]);
 
   const filtered = items.filter((i) => filter === 'all' || i.status === filter);
   const totalIncome = filtered.filter((i) => i.type === 'income' && i.status !== 'cancelled').reduce((s, i) => s + Math.abs(parseNumber(i.amount)), 0);
