@@ -1,10 +1,10 @@
-import { defineResource, ListQuerySchema } from '../lib/crud.js';
+import { defineResource, ListQuerySchema } from '../../lib/crud.js';
 import {
   TransactionSchema,
   TransactionListItemSchema,
   CreateTransactionSchema,
   UpdateTransactionSchema,
-} from '../schemas/index.js';
+} from '../../schemas/index.js';
 
 export default defineResource({
   path: '/v1/transactions',

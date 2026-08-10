@@ -200,6 +200,13 @@ O backend expõe um servidor MCP em dois transportes:
 - Endpoint: \`POST /mcp\` (e \`GET\` para SSE)
 - Configuração para o cliente: \`https://doc.organizai.duckdns.org/mcp\`
 - Descoberta: \`GET /mcp.json\`
+- Autenticação: OAuth 2.1 (PKCE S256 + dynamic client registration). O cliente
+  descobre o authorization server em
+  \`/.well-known/oauth-authorization-server\` e é direcionado ao login
+  (\`gui@organizai.local\`) no \`/authorize\`. O access token emitido é o JWT da
+  sessão Supabase do usuário (RLS). Sem token, o \`/mcp\` responde \`401\`.
+- Alternativa (legada): header \`Authorization: Bearer <SUPABASE_ACCESS_TOKEN>\`
+  com um JWT de sessão manual do usuário.
 
 ### 2. STDIO (execução local)
 - Executável via \`npm run mcp\` no diretório \`apps/api\`.
@@ -211,6 +218,18 @@ O backend expõe um servidor MCP em dois transportes:
 4. \`list_categories\`: Lista categorias globais e da família.
 
 ## Exemplo de Configuração MCP (Claude / Cursor)
+\`\`\`json
+{
+  "mcpServers": {
+    "organizai": {
+      "type": "http",
+      "url": "https://doc.organizai.duckdns.org/mcp"
+    }
+  }
+}
+\`\`\`
+Cliente com suporte a OAuth (ex.: opencode) negocia a autorização sozinho.
+Sem suporte, use um token manual no header (método legado):
 \`\`\`json
 {
   "mcpServers": {

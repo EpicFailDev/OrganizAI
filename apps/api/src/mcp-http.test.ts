@@ -49,6 +49,28 @@ describe('Endpoint HTTP /mcp', () => {
     expect(await res.text()).toContain('Sessão MCP não encontrada');
   });
 
+  it('exige Bearer token (401) e anuncia WWW-Authenticate', async () => {
+    const res = await request(app, '/mcp', {
+      method: 'POST',
+      headers: { ...MCP_HEADERS },
+      body: INITIALIZE,
+    });
+
+    expect(res.status).toBe(401);
+    expect(res.headers.get('WWW-Authenticate')).toContain('Bearer');
+  });
+
+  it('rejeita token inválido com 401', async () => {
+    state.user = null; // mock: getUser falha -> token inválido
+    const res = await request(app, '/mcp', {
+      method: 'POST',
+      headers: { ...MCP_HEADERS, Authorization: 'Bearer token-invalido' },
+      body: INITIALIZE,
+    });
+
+    expect(res.status).toBe(401);
+  });
+
   it('GET /mcp exige accept text/event-stream (406)', async () => {
     const res = await request(app, '/mcp', { method: 'GET', headers: authHeaders() });
     expect(res.status).toBe(406);

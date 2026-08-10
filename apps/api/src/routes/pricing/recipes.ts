@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { defineResource, ListQueryFilterableSchema } from '../lib/crud.js';
-import { getDb } from '../lib/request-context.js';
-import { dbErrorHandler } from '../lib/errors.js';
+import { defineResource, ListQueryFilterableSchema } from '../../lib/crud.js';
+import { getDb } from '../../lib/request-context.js';
+import { dbErrorHandler } from '../../lib/errors.js';
 import {
   PricingRecipeSchema,
   CreatePricingRecipeSchema,
@@ -9,7 +9,7 @@ import {
   RecipeItemSchema,
   ReplaceRecipeItemsSchema,
   ErrorResponseSchema,
-} from '../schemas/index.js';
+} from '../../schemas/index.js';
 
 const recipesApp = defineResource({
   path: '/v1/pricing-recipes',

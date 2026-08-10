@@ -1,9 +1,9 @@
-import { defineResource, ListQuerySchema } from '../lib/crud.js';
+import { defineResource, ListQuerySchema } from '../../lib/crud.js';
 import {
   SaleSchema,
   CreateSaleSchema,
   UpdateSaleSchema,
-} from '../schemas/index.js';
+} from '../../schemas/index.js';
 
 export default defineResource({
   path: '/v1/sales',

@@ -121,6 +121,10 @@ cat > .env <<EOF
 VITE_SUPABASE_URL=$SUPABASE_URL
 VITE_SUPABASE_ANON_KEY=$SUPABASE_KEY
 VITE_API_URL=/api
+# OAuth do servidor MCP: e-mails autorizados (vazio = qualquer usuário Supabase válido)
+MCP_OAUTH_ALLOWED_EMAILS=
+# URL pública do issuer OAuth (default: usa a subdomain da documentação)
+MCP_OAUTH_ISSUER_URL=
 EOF
 chmod 600 .env
 if [ -n "${SUDO_USER:-}" ]; then
@@ -174,6 +178,24 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
+    # Endpoints OAuth do servidor MCP (RFC 8414 / RFC 7591)
+    location ~ ^/(authorize|token|register|revoke)(/.*)?$ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Descoberta de metadados OAuth (RFC 8414 / RFC 9728)
+    location /.well-known/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
     # Endpoint HTTP do Model Context Protocol (Streamable HTTP)
     location /mcp {
         proxy_pass http://127.0.0.1:3000;
@@ -206,6 +228,24 @@ server {
 
     # Documentação (Scalar) e especificação OpenAPI
     location ~ ^/(doc|docs|openapi.json|mcp.json|llms.txt|llms-full.txt)$ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Endpoints OAuth do servidor MCP (RFC 8414 / RFC 7591)
+    location ~ ^/(authorize|token|register|revoke)(/.*)?$ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Descoberta de metadados OAuth (RFC 8414 / RFC 9728)
+    location /.well-known/ {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;

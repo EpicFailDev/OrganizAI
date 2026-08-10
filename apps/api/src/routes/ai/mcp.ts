@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
-import { createMcpServer } from '../mcp/server.js';
-import { supabase, createUserClient } from '../lib/supabase.js';
-import type { AppEnv } from '../lib/request-context.js';
+import { createMcpServer } from '../../mcp/server.js';
+import { createUserClient } from '../../lib/supabase.js';
+import { verifyMcpAccessToken } from '../../mcp/auth/index.js';
+import type { AppEnv } from '../../lib/request-context.js';
 
 // Endpoint HTTP do Model Context Protocol (Streamable HTTP).
 //
@@ -58,22 +59,28 @@ mcpApp.all('/mcp', async (c) => {
     return new Response('Sessão MCP não encontrada', { status: 404 });
   }
 
-  // Cliente Supabase escopado ao token JWT do request (Authorization: Bearer),
-  // para que as ferramentas MCP respeitem a RLS do usuário autenticado.
-  // O userId resolvido é injetado no servidor MCP (a ferramenta add_transaction
-  // o usa para preencher created_by sem depender de sessão do supabase-js).
+  // Cliente Supabase escopado ao access token OAuth do request
+  // (Authorization: Bearer). O token emitido pelo authorize é um JWT do
+  // Supabase, então `createUserClient(token)` faz o PostgREST aplicar a RLS do
+  // usuário autenticado. Tokens ausentes/inválidos/revogados são rejeitados
+  // com 401 (o fluxo OAuth substitui o antigo JWT manual no header).
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
 
-  let userId: string | undefined;
-  let mcpClient = c.get('supabase');
-  if (token) {
-    const { data, error } = await supabase.auth.getUser(token);
-    if (!error && data.user) {
-      userId = data.user.id;
-      mcpClient = createUserClient(token);
-    }
+  if (!token) {
+    return c.json(
+      { error: 'Não autenticado: autorize o agente via OAuth (Authorization: Bearer <token>).' },
+      401,
+      { 'WWW-Authenticate': 'Bearer' }
+    );
   }
+
+  const auth = await verifyMcpAccessToken(token);
+  if (!auth) {
+    return c.json({ error: 'Token inválido ou expirado' }, 401, { 'WWW-Authenticate': 'Bearer' });
+  }
+  const userId = auth.userId;
+  const mcpClient = createUserClient(token);
 
   // Nova sessão: cria o transport com sessionIdGenerator e conecta o McpServer.
   const transport = new WebStandardStreamableHTTPServerTransport({

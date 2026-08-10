@@ -14,6 +14,14 @@ export interface MockResult {
   count?: number;
 }
 
+/** Sessão Supabase fake retornada por signInWithPassword/refreshSession. */
+export interface MockSession {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  user: { id: string; email?: string };
+}
+
 export interface MockState {
   /** Usuário retornado por auth.getUser(); null = token inválido. */
   user: { id: string; email?: string } | null;
@@ -29,6 +37,13 @@ export interface MockState {
     args?: unknown;
     ops: string[];
   }>;
+  /**
+   * Resultado de auth.signInWithPassword. Ausente = credenciais inválidas.
+   * `{ session, user }` = sucesso; `{ error }` = falha.
+   */
+  signInPassword?: { session: MockSession; user: MockSession['user'] } | { error: { message: string } };
+  /** Resultado de auth.refreshSession. Ausente = falha. */
+  refreshSessionResult?: { session: MockSession } | { error: { message: string } };
 }
 
 /** Resultado padrão: dados nulos, sem erro. */
@@ -54,6 +69,8 @@ export function resetSupabaseState(): void {
   state.tables = {};
   state.rpcs = {};
   state.calls = [];
+  state.signInPassword = undefined;
+  state.refreshSessionResult = undefined;
 }
 
 /** Query chainable e thenable que registra as operações e resolve o resultado. */
@@ -142,6 +159,22 @@ export function buildMockModule() {
         }
         return { data: { user: state.user }, error: null };
       }),
+      signInWithPassword: vi.fn(async (_creds: { email: string; password: string }) => {
+        if (state.signInPassword && 'error' in state.signInPassword) {
+          return { data: { user: null, session: null }, error: state.signInPassword.error };
+        }
+        const session = state.signInPassword?.session ?? null;
+        return { data: { user: session?.user ?? null, session }, error: null };
+      }),
+      refreshSession: vi.fn(async (_input: { refresh_token: string }) => {
+        if (state.refreshSessionResult && 'error' in state.refreshSessionResult) {
+          return { data: { session: null }, error: state.refreshSessionResult.error };
+        }
+        return { data: { session: state.refreshSessionResult?.session ?? null }, error: null };
+      }),
+      admin: {
+        signOut: vi.fn(async () => ({ error: null })),
+      },
     },
   };
 

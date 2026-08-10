@@ -1,9 +1,9 @@
-import { defineResource, ListQueryFilterableSchema } from '../lib/crud.js';
+import { defineResource, ListQueryFilterableSchema } from '../../lib/crud.js';
 import {
   PlanningItemSchema,
   CreatePlanningItemSchema,
   UpdatePlanningItemSchema,
-} from '../schemas/index.js';
+} from '../../schemas/index.js';
 
 export default defineResource({
   path: '/v1/planning-items',

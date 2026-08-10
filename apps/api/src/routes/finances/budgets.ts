@@ -1,8 +1,8 @@
-import { defineResource, ListQueryFilterableSchema } from '../lib/crud.js';
+import { defineResource, ListQueryFilterableSchema } from '../../lib/crud.js';
 import {
   BudgetSchema,
   CreateBudgetSchema,
-} from '../schemas/index.js';
+} from '../../schemas/index.js';
 
 export default defineResource({
   path: '/v1/budgets',

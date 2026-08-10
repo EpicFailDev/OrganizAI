@@ -1,9 +1,9 @@
 import { z } from '@hono/zod-openapi';
-import { defineResource } from '../lib/crud.js';
+import { defineResource } from '../../lib/crud.js';
 import {
   ReceiptItemSchema,
   CreateReceiptItemSchema,
-} from '../schemas/index.js';
+} from '../../schemas/index.js';
 
 export default defineResource({
   path: '/v1/receipt-items',

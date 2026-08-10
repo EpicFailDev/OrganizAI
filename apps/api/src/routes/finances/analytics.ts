@@ -1,9 +1,9 @@
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
-import { getDb, getUserId } from '../lib/request-context.js';
-import type { AppEnv } from '../lib/request-context.js';
-import { dbErrorHandler, isPostgrestError } from '../lib/errors.js';
-import { computeFinancialSummary, emptySummary } from '../services/financial-summary.js';
-import { FinancialAnalyticsSummarySchema, ErrorResponseSchema } from '../schemas/index.js';
+import { getDb, getUserId } from '../../lib/request-context.js';
+import type { AppEnv } from '../../lib/request-context.js';
+import { dbErrorHandler, isPostgrestError } from '../../lib/errors.js';
+import { computeFinancialSummary, emptySummary } from '../../services/financial-summary.js';
+import { FinancialAnalyticsSummarySchema, ErrorResponseSchema } from '../../schemas/index.js';
 
 const analyticsApp = new OpenAPIHono<AppEnv>();
 

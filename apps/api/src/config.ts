@@ -33,6 +33,23 @@ export const config = {
     { url: 'http://localhost:3000', description: 'Ambiente de Desenvolvimento Local' },
   ],
 
+  /** Servidor de autorização OAuth do MCP (RFC 8414). */
+  oauth: {
+    /**
+     * URL pública do authorization server (issuer). Precisa ser HTTPS em
+     * produção (o SDK rejeita HTTP exceto em localhost).
+     */
+    issuerUrl: env.MCP_OAUTH_ISSUER_URL || env.API_DOC_URL || 'https://doc.organizai.duckdns.org',
+    /**
+     * E-mails permitidos no login do /authorize (separados por vírgula).
+     * Vazio = qualquer usuário válido do Supabase Auth pode autorizar o MCP.
+     */
+    allowedEmails: (env.MCP_OAUTH_ALLOWED_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  },
+
   bodyLimitBytes: 1024 * 1024, // 1 MB
 
   cors: {

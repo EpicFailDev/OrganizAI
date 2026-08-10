@@ -7,21 +7,23 @@ import { supabase, createUserClient } from './lib/supabase.js';
 import { rateLimit } from './lib/rate-limit.js';
 import type { AppEnv } from './lib/request-context.js';
 
-import healthApp from './routes/health.js';
-import transactionsApp from './routes/transactions.js';
-import categoriesApp from './routes/categories.js';
-import analyticsApp from './routes/analytics.js';
-import familyApp from './routes/family.js';
-import goalsApp from './routes/goals.js';
-import budgetsApp from './routes/budgets.js';
-import planningApp from './routes/planning.js';
-import ingredientsApp from './routes/ingredients.js';
-import recipesApp from './routes/recipes.js';
-import productsApp from './routes/products.js';
-import salesApp from './routes/sales.js';
-import receiptItemsApp from './routes/receipt-items.js';
-import llmsApp from './routes/llms.js';
-import mcpApp from './routes/mcp.js';
+import {
+  healthApp,
+  transactionsApp,
+  categoriesApp,
+  analyticsApp,
+  familyApp,
+  goalsApp,
+  budgetsApp,
+  planningApp,
+  ingredientsApp,
+  recipesApp,
+  productsApp,
+  salesApp,
+  receiptItemsApp,
+  llmsApp,
+  mcpApp,
+} from './routes/index.js';
 
 import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
