@@ -206,7 +206,6 @@ async function importCsv(filePath, familyId, categories, profileId) {
       rawValue = rawValue.replace(/\./g, '').replace(',', '.');
     }
     // Standard format: 1234.56 → use as-is
-    const identifier = (row['Identificador'] || '').trim();
 
     if (!desc || !rawDate || !rawValue) { console.log('  Skipping row - missing data:', { desc, rawDate, rawValue }); skipped++; continue; }
 

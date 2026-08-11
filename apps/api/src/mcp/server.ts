@@ -64,9 +64,9 @@ export function createMcpServer(
             },
           ],
         };
-      } catch (error) {
+      } catch {
         return {
-          content: [{ type: 'text', text: `Erro ao buscar dados: ${(error as Error).message}` }],
+          content: [{ type: 'text', text: 'Erro ao buscar dados financeiros. Tente novamente.' }],
           isError: true,
         };
       }
@@ -160,7 +160,7 @@ export function createMcpServer(
 
       if (error) {
         return {
-          content: [{ type: 'text', text: `Erro ao salvar transação: ${error.message}` }],
+          content: [{ type: 'text', text: 'Erro ao listar categorias. Tente novamente.' }],
           isError: true,
         };
       }

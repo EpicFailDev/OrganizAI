@@ -42,6 +42,9 @@ self.addEventListener('fetch', (event) => {
   // Skip Supabase API calls (always network)
   if (url.hostname.includes('supabase')) return;
 
+  // Skip authenticated API calls (always network, never cached)
+  if (url.pathname.startsWith('/api/')) return;
+
   // Skip chrome-extension and other non-http
   if (!url.protocol.startsWith('http')) return;
 
@@ -50,8 +53,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, clone));
+          if (response.ok || response.type === 'opaque') {
+            const clone = response.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, clone));
+          }
           return response;
         })
         .catch(() => caches.match('/index.html'))
@@ -88,8 +93,10 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     Promise.race([
       fetch(request).then((response) => {
-        const clone = response.clone();
-        caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, clone));
+        if (response.ok || response.type === 'opaque') {
+          const clone = response.clone();
+          caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, clone));
+        }
         return response;
       }),
       new Promise((_, reject) =>

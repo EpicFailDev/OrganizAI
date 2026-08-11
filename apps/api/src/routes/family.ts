@@ -232,7 +232,7 @@ const joinFamilyRoute = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: z.object({ invite_code: z.string().trim().length(8).regex(/^[A-Z0-9]+$/) }),
+          schema: z.object({ invite_code: z.string().trim().length(12).regex(/^[A-Z0-9]+$/) }),
         },
       },
     },

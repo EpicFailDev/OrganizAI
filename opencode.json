@@ -1,5 +1,21 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "instructions": [
+    ".opencode/instructions/INSTRUCTIONS.md",
+    ".opencode/skills/coding-standards/SKILL.md",
+    ".opencode/skills/react-patterns/SKILL.md",
+    ".opencode/skills/react-testing/SKILL.md",
+    ".opencode/skills/vite-patterns/SKILL.md",
+    ".opencode/skills/postgres-patterns/SKILL.md",
+    ".opencode/skills/database-migrations/SKILL.md",
+    ".opencode/skills/api-design/SKILL.md",
+    ".opencode/skills/e2e-testing/SKILL.md",
+    ".opencode/skills/verification-loop/SKILL.md",
+    ".opencode/skills/tdd-workflow/SKILL.md",
+    ".opencode/skills/security-review/SKILL.md",
+    ".opencode/skills/strategic-compact/SKILL.md"
+  ],
   "mcp": {
     "organizai": {
       "type": "remote",
@@ -11,5 +27,116 @@
       "url": "https://mcp.supabase.com/mcp?project_ref=cwpbidoxhnocyotqzhaz&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching",
       "enabled": true
     }
+  },
+  "agent": {
+    "planner": {
+      "description": "Expert planning specialist for complex features and refactoring. Use for implementation planning, architectural changes, or complex refactoring.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/planner.txt}",
+      "permission": {
+        "read": "allow",
+        "bash": "allow",
+        "edit": "deny"
+      }
+    },
+    "architect": {
+      "description": "Software architecture specialist for system design, scalability, and technical decision-making.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/architect.txt}",
+      "permission": {
+        "read": "allow",
+        "bash": "allow",
+        "edit": "deny"
+      }
+    },
+    "code-reviewer": {
+      "description": "Expert code review specialist. Reviews code for quality, security, and maintainability. Use immediately after writing or modifying code.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/code-reviewer.txt}",
+      "permission": {
+        "read": "allow",
+        "bash": "allow",
+        "edit": "deny"
+      }
+    },
+    "security-reviewer": {
+      "description": "Security vulnerability detection and remediation specialist. Use after writing code that handles user input, authentication, API endpoints, or sensitive data.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/security-reviewer.txt}",
+      "permission": {
+        "read": "allow",
+        "bash": "allow",
+        "edit": "allow"
+      }
+    },
+    "tdd-guide": {
+      "description": "Test-Driven Development specialist enforcing write-tests-first methodology. Use when writing new features, fixing bugs, or refactoring code.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/tdd-guide.txt}",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow"
+      }
+    },
+    "build-error-resolver": {
+      "description": "Build and TypeScript error resolution specialist. Use when build fails or type errors occur. Fixes build/type errors only with minimal diffs.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/build-error-resolver.txt}",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow"
+      }
+    },
+    "e2e-runner": {
+      "description": "End-to-end testing specialist using Playwright. Generates, maintains, and runs E2E tests for critical user flows.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/e2e-runner.txt}",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow"
+      }
+    },
+    "doc-updater": {
+      "description": "Documentation and codemap specialist. Use for updating codemaps and documentation.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/doc-updater.txt}",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow"
+      }
+    },
+    "refactor-cleaner": {
+      "description": "Dead code cleanup and consolidation specialist. Use for removing unused code, duplicates, and refactoring.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/refactor-cleaner.txt}",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow"
+      }
+    },
+    "database-reviewer": {
+      "description": "PostgreSQL database specialist for query optimization, schema design, security, and performance. Incorporates Supabase best practices.",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/prompts/agents/database-reviewer.txt}",
+      "permission": {
+        "read": "allow",
+        "write": "allow",
+        "edit": "allow",
+        "bash": "allow"
+      }
+    }
+  },
+  "permission": {
+    "mcp_*": "ask"
   }
 }

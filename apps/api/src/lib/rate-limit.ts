@@ -46,7 +46,10 @@ export function rateLimit(
       peer = undefined;
     }
 
-    const ip = forwarded?.split(',')[0]?.trim() || peer || 'unknown';
+    // Pega o ÚLTIMO IP da cadeia X-Forwarded-For: o proxy reverso sobrescreve
+    // o header com $remote_addr (o cliente não controla o valor), e o último
+    // elemento é sempre o endereço do proxy mais próximo, imune a spoofing.
+    const ip = forwarded?.split(',')[forwarded.split(',').length - 1]?.trim() || peer || 'unknown';
     const now = Date.now();
 
     const entry = hits.get(ip);

@@ -104,11 +104,11 @@ describe('Rotas /v1/me e /v1/family', () => {
     const res = await request(app, '/v1/family/join', {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invite_code: 'ABCDEF12' }),
+      body: JSON.stringify({ invite_code: 'ABCDEF123456' }),
     });
     expect(res.status).toBe(200);
     const call = state.calls.find((c) => c.type === 'rpc' && c.fn === 'join_family');
-    expect(call?.args).toEqual({ p_invite_code: 'ABCDEF12' });
+    expect(call?.args).toEqual({ p_invite_code: 'ABCDEF123456' });
   });
 
   it('rejeita código de convite com formato inválido (400)', async () => {
@@ -126,7 +126,7 @@ describe('Rotas /v1/me e /v1/family', () => {
     const res = await request(app, '/v1/family/join', {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invite_code: 'INVALIDO' }),
+      body: JSON.stringify({ invite_code: 'INVALIDO12AB' }),
     });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('Código de convite inválido');
