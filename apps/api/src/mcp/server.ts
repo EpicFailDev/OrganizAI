@@ -101,7 +101,7 @@ export function createMcpServer(
 
       if (error) {
         return {
-          content: [{ type: 'text', text: `Erro: ${error.message}` }],
+          content: [{ type: 'text', text: 'Erro ao listar transações. Tente novamente.' }],
           isError: true,
         };
       }
