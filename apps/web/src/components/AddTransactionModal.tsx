@@ -83,11 +83,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
   // Smart fields — Salgados
   const [salgadosQty, setSalgadosQty] = useState('');
-  const [salgadosPrice, setSalgadosPrice] = useState('3,50');
+  const [salgadosPrice, setSalgadosPrice] = useState('7,00');
   const [refriQty, setRefriQty] = useState('');
-  const [refriPrice, setRefriPrice] = useState('4,00');
+  const [refriPrice, setRefriPrice] = useState('3,00');
   const [cafeQty, setCafeQty] = useState('');
-  const [cafePrice, setCafePrice] = useState('3,00');
+  const [cafePrice, setCafePrice] = useState('2,00');
 
   // Smart fields — Uber / 99
   const [uberOdometer, setUberOdometer] = useState('');
