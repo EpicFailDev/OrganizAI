@@ -160,7 +160,7 @@ export function createMcpServer(
 
       if (error) {
         return {
-          content: [{ type: 'text', text: 'Erro ao listar categorias. Tente novamente.' }],
+          content: [{ type: 'text', text: 'Erro ao salvar transação. Verifique os dados e tente novamente.' }],
           isError: true,
         };
       }
@@ -200,7 +200,7 @@ export function createMcpServer(
 
       if (error) {
         return {
-          content: [{ type: 'text', text: `Erro: ${error.message}` }],
+          content: [{ type: 'text', text: 'Erro ao listar categorias. Tente novamente.' }],
           isError: true,
         };
       }

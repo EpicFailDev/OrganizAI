@@ -4,7 +4,7 @@ import { z } from '@hono/zod-openapi';
 // Categoria
 // ----------------------------------------------------
 // Colunas reais de public.categories:
-// id, family_id, name, type, color, icon, created_at
+// id, family_id, name, type, color, icon, usage_count, last_used, created_at
 export const CategorySchema = z.object({
   id: z.string().uuid().openapi({ example: 'a1b2c3d4-0000-0000-0000-000000000001' }),
   name: z.string().openapi({ example: 'Alimentação' }),
@@ -12,6 +12,8 @@ export const CategorySchema = z.object({
   color: z.string().nullable().optional().openapi({ example: '#EF4444' }),
   type: z.enum(['income', 'expense']).openapi({ example: 'expense' }),
   family_id: z.string().uuid().nullable().optional(),
+  usage_count: z.number().int().default(0).optional(),
+  last_used: z.string().nullable().optional(),
   created_at: z.string().optional(),
 }).openapi('Category');
 
@@ -30,6 +32,8 @@ export const SubcategorySchema = z.object({
   id: z.string().uuid(),
   category_id: z.string().uuid(),
   name: z.string(),
+  usage_count: z.number().int().default(0).optional(),
+  last_used: z.string().nullable().optional(),
   created_at: z.string().optional(),
 }).openapi('Subcategory');
 

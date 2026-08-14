@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'organizai-static-v1';
-const DYNAMIC_CACHE = 'organizai-dynamic-v1';
+const STATIC_CACHE = 'organizai-static-v2';
+const DYNAMIC_CACHE = 'organizai-dynamic-v2';
 
 // Assets to precache (app shell)
 const PRECACHE_ASSETS = [

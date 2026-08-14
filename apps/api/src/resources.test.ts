@@ -137,6 +137,32 @@ describe('CRUD genérico das demais entidades', () => {
     expect(call?.ops).toContain(`eq:category_id=${CATEGORY}`);
   });
 
+  it('categorias: registro de uso chama a RPC increment_category_usage', async () => {
+    state.rpcs.increment_category_usage = ok();
+    const res = await request(app, `/v1/categories/${CATEGORY}/usage`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subcategory_id: ID }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true });
+
+    const call = state.calls.find((c) => c.type === 'rpc' && c.fn === 'increment_category_usage');
+    expect(call?.args).toEqual({ p_category_id: CATEGORY, p_subcategory_id: ID });
+  });
+
+  it('categorias: registro de uso sem subcategoria passa null', async () => {
+    state.rpcs.increment_category_usage = ok();
+    const res = await request(app, `/v1/categories/${CATEGORY}/usage`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const call = state.calls.find((c) => c.type === 'rpc' && c.fn === 'increment_category_usage');
+    expect(call?.args).toEqual({ p_category_id: CATEGORY, p_subcategory_id: null });
+  });
+
   it('ingredients: setUpdatedAt preenche updated_at no update', async () => {
     state.tables.ingredients_base = ok({ id: ID, family_id: FAMILY, name: 'Farinha' });
     await request(app, `/v1/ingredients/${ID}`, {

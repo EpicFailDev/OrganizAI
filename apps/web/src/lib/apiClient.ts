@@ -114,12 +114,15 @@ export interface Category {
   color?: string | null;
   icon?: string | null;
   family_id?: string | null;
+  usage_count?: number | null;
+  last_used?: string | null;
 }
 
 export interface Subcategory {
   id: string;
   category_id: string;
   name: string;
+  usage_count?: number | null;
 }
 
 export interface Transaction {
@@ -275,6 +278,11 @@ export const api = {
   createSubcategory: (body: { category_id: string; name: string }) =>
     post<Subcategory>('/v1/subcategories', body),
   deleteSubcategory: (id: string) => del<{ success: boolean }>(`/v1/subcategories/${id}`),
+  // ---------------------------------------------------------------
+  // Utilitários de acompanhamento de categorias
+  // ---------------------------------------------------------------
+  updateCategoryUsage: (categoryId: string, subcategoryId?: string) =>
+    post<{ success: boolean }>(`/v1/categories/${categoryId}/usage`, { category_id: categoryId, subcategory_id: subcategoryId }),
 
   // ---------------------------------------------------------------
   // Transações e Itens de Recibo

@@ -43,7 +43,7 @@ describe('Endpoint HTTP /mcp', () => {
   it('rejeita sessionId desconhecido com 404', async () => {
     const res = await request(app, '/mcp', {
       method: 'POST',
-      headers: { ...MCP_HEADERS, 'mcp-session-id': 'sessao-inexistente' },
+      headers: { ...MCP_HEADERS, ...authHeaders(), 'mcp-session-id': 'sessao-inexistente' },
       body: INITIALIZE,
     });
 

@@ -10,6 +10,7 @@ interface Category {
   id: string;
   name: string;
   type: 'income' | 'expense';
+  usage_count?: number | null;
 }
 
 interface Subcategory {
@@ -104,7 +105,14 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   descriptionTouchedRef.current = descriptionTouched;
 
   const filteredCategories = useMemo(() => {
-    return categories.filter(c => c.type === type);
+    const base = categories.filter(c => c.type === type);
+    // Order by usage_count descending (most used first), then alphabetically
+    return base.sort((a, b) => {
+      const aUsage = a.usage_count ?? 0;
+      const bUsage = b.usage_count ?? 0;
+      if (aUsage !== bUsage) return bUsage - aUsage; // highest usage first
+      return a.name.localeCompare(b.name); // alphabetical fallback
+    });
   }, [categories, type]);
 
   useEffect(() => {
@@ -381,6 +389,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       });
 
       if (insertError) throw insertError;
+
+      // Atualizar contador de uso da categoria e subcategoria
+      if (categoryId) {
+        await api.updateCategoryUsage(categoryId, subcategoryId);
+      }
 
       // Salva itens inteligentes (combustível / salgados / uber) como receipt_items
       const receiptItems = buildReceiptItems(inserted?.id || '');
