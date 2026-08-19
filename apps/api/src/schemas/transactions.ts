@@ -29,6 +29,7 @@ export const TransactionSchema = z.object({
   created_by: z.string().uuid().openapi({ example: 'a1b2c3d4-0000-0000-0000-000000000002' }),
   attachment_url: z.string().nullable().optional(),
   time: isoTime().nullable().optional().openapi({ example: '14:30:00' }),
+  odometer_km: z.number().nullable().optional().openapi({ example: 124500 }),
   created_at: z.string().optional(),
 }).openapi('Transaction');
 
@@ -41,6 +42,7 @@ export const CreateTransactionSchema = z.object({
   subcategory_id: z.string().uuid().nullable().optional(),
   date: isoDate().openapi({ example: '2026-08-08' }),
   time: isoTime().nullable().optional().openapi({ example: '14:30:00' }),
+  odometer_km: z.number().nullable().optional().openapi({ example: 124500 }),
   attachment_url: z.string().nullable().optional(),
 }).openapi('CreateTransaction');
 
@@ -52,6 +54,7 @@ export const UpdateTransactionSchema = z.object({
   type: TransactionTypeSchema.optional(),
   category_id: z.string().uuid().optional(),
   subcategory_id: z.string().uuid().nullable().optional(),
+  odometer_km: z.number().nullable().optional(),
   attachment_url: z.string().nullable().optional(),
 }).openapi('UpdateTransaction');
 
@@ -67,6 +70,7 @@ export const TransactionListItemSchema = z.object({
   created_by: z.string().uuid(),
   attachment_url: z.string().nullable().optional(),
   time: isoTime().nullable().optional(),
+  odometer_km: z.number().nullable().optional(),
   created_at: z.string().optional(),
   categories: CategoryRefSchema,
   subcategories: SubcategoryRefSchema,

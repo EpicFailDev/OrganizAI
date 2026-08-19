@@ -113,9 +113,17 @@ export const Relatorios: React.FC<RelatoriosProps> = ({ transactions }) => {
 
   // Daily average
   const daysInPeriod = (() => {
-    if (period !== 'month') return period === 'quarter' ? 90 : 365;
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    if (period === 'month') return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    if (period === 'quarter') {
+      const q = Math.floor(now.getMonth() / 3);
+      const startMonth = q * 3;
+      return new Date(now.getFullYear(), startMonth + 3, 0).getDate() // days in 3rd month of quarter
+        + new Date(now.getFullYear(), startMonth + 2, 0).getDate() // days in 2nd month
+        + new Date(now.getFullYear(), startMonth + 1, 0).getDate(); // days in 1st month
+    }
+    // year: check leap year
+    return now.getFullYear() % 4 === 0 && (now.getFullYear() % 100 !== 0 || now.getFullYear() % 400 === 0) ? 366 : 365;
   })();
   const avgDaily = totals.balance / daysInPeriod;
 

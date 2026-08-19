@@ -136,6 +136,7 @@ export interface Transaction {
   amount: number;
   created_by: string;
   attachment_url?: string | null;
+  odometer_km?: number | null;
   created_at?: string;
   categories?: { name: string; color?: string | null } | null;
   subcategories?: { name: string } | null;

@@ -219,10 +219,10 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
     }
 
     // Update products cost price if linked
-    const totalCost = calculations.totalIngredients;
-    const costPerUnit = yieldQuantity > 0 ? totalCost / yieldQuantity : 0;
+    // Custo real por unidade = (ingredientes + 25% overhead) / rendimento + embalagem
+    const fullCostPerUnit = calculations.pricePerUnit;
 
-    await api.updateProductCostsByRecipe(selectedRecipeId, costPerUnit);
+    await api.updateProductCostsByRecipe(selectedRecipeId, fullCostPerUnit);
 
     setSaving(false);
     setSaved(true);

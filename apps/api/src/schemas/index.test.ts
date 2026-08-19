@@ -27,6 +27,16 @@ describe('CreateTransactionSchema', () => {
     expect(result.success && result.data.time).toBe('14:30:00');
   });
 
+  it('mantém o campo odometer_km quando informado', () => {
+    const result = CreateTransactionSchema.safeParse({ ...valid, odometer_km: 124500 });
+    expect(result.success && result.data.odometer_km).toBe(124500);
+  });
+
+  it('aceita odometer_km nulo ou ausente', () => {
+    expect(CreateTransactionSchema.safeParse({ ...valid, odometer_km: null }).success).toBe(true);
+    expect(CreateTransactionSchema.safeParse(valid).success).toBe(true);
+  });
+
   it('descarta campos extras como created_by (compatibilidade com o frontend)', () => {
     const result = CreateTransactionSchema.safeParse({
       ...valid,

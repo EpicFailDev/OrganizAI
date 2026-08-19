@@ -16,6 +16,7 @@ interface Transaction {
   subcategory_id?: string;
   created_by: string;
   attachment_url?: string;
+  odometer_km?: number | null;
   categories?: { name: string; color?: string };
   subcategories?: { name: string };
   profiles?: { display_name: string };
@@ -52,6 +53,7 @@ interface TransactionUpdate {
   amount: number;
   category_id: string;
   subcategory_id?: string | null;
+  odometer_km?: number | null;
 }
 
 interface TransactionDetailModalProps {
@@ -94,6 +96,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const [categoryId, setCategoryId] = useState(transaction.category_id || '');
   const [subcategoryId, setSubcategoryId] = useState(transaction.subcategory_id || '');
   const [amount, setAmount] = useState(String(Math.abs(parseNumber(transaction.amount))).replace('.', ','));
+  const [odometer, setOdometer] = useState(transaction.odometer_km ? String(transaction.odometer_km) : '');
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
 
   const attachmentUrl = useSignedAttachmentUrl(transaction.attachment_url);
@@ -130,6 +133,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     setCategoryId(transaction.category_id || '');
     setSubcategoryId(transaction.subcategory_id || '');
     setAmount(String(Math.abs(parseNumber(transaction.amount))).replace('.', ','));
+    setOdometer(transaction.odometer_km ? String(transaction.odometer_km) : '');
     setErrorMsg('');
     setIsEditing(false);
   };
@@ -151,6 +155,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         amount: cleanAmount,
         category_id: categoryId,
         subcategory_id: subcategoryId || null,
+        odometer_km: odometer ? Math.round(parseNumber(odometer)) : null,
       });
       setIsEditing(false);
     } catch (err: any) {
@@ -299,6 +304,19 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                 </div>
               )}
 
+              {/* Odômetro */}
+              <div className="ios-input-group">
+                <label className="ios-input-label">Odômetro (km)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className="ios-input"
+                  placeholder="Ex: 124.500"
+                  value={odometer}
+                  onChange={e => setOdometer(e.target.value.replace(/[^\d]/g, ''))}
+                />
+              </div>
+
               {/* Actions */}
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                 <button className="ios-btn ios-btn-secondary" onClick={handleCancelEdit} disabled={loading} style={{ flex: 1 }}>
@@ -338,6 +356,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                   </span>
                 ))}
                 {infoRow('Subcategoria', transaction.subcategories?.name || '—')}
+                {infoRow('Odômetro', transaction.odometer_km ? `${Number(transaction.odometer_km).toLocaleString('pt-BR')} km` : '—')}
                 {infoRow('Membro', (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     {transaction.profiles?.display_name?.split(' ')[0] || 'Membro'}

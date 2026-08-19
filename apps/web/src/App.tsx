@@ -242,6 +242,7 @@ function App() {
     date: string; time?: string; description: string;
     type: 'income' | 'expense'; amount: number;
     category_id: string; subcategory_id?: string | null;
+    odometer_km?: number | null;
   }) => {
     try {
       const { error } = await api.updateTransaction(id, updates);

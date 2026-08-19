@@ -24,6 +24,21 @@ const fmt = (v: number) =>
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899'];
 
+/** Estima quando a meta será alcançada com base na taxa de economia atual. */
+function forecastGoal(g: Goal): string | null {
+  if (!g.created_at || g.current_amount <= 0 || g.target_amount <= g.current_amount) return null;
+  const created = new Date(g.created_at);
+  const now = new Date();
+  const daysElapsed = Math.max(1, Math.floor((now.getTime() - created.getTime()) / 86400000));
+  const ratePerDay = g.current_amount / daysElapsed; // R$/dia
+  const remaining = g.target_amount - g.current_amount;
+  const daysRemaining = Math.ceil(remaining / ratePerDay);
+  if (!Number.isFinite(daysRemaining) || daysRemaining <= 0) return null;
+  if (daysRemaining > 365 * 10) return 'Mais de 10 anos';
+  const target = new Date(now.getTime() + daysRemaining * 86400000);
+  return target.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+}
+
 export const Metas: React.FC<MetasProps> = ({ familyId }) => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [showAdd, setShowAdd] = useState(false);
@@ -201,7 +216,7 @@ export const Metas: React.FC<MetasProps> = ({ familyId }) => {
                 </div>
 
                 {/* Progress */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
                   <div style={{ flex: 1, height: '8px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '50px', overflow: 'hidden' }}>
                     <div style={{
                       width: `${pct}%`, height: '100%', borderRadius: '50px',
@@ -213,6 +228,19 @@ export const Metas: React.FC<MetasProps> = ({ familyId }) => {
                     {pct}%
                   </span>
                 </div>
+
+                {/* Forecast */}
+                {(() => {
+                  const forecast = forecastGoal(g);
+                  if (!forecast) return null;
+                  const remaining = g.target_amount - g.current_amount;
+                  return (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Previsão: <strong style={{ color: g.color }}>{forecast}</strong></span>
+                      <span>Faltam {fmt(remaining)}</span>
+                    </div>
+                  );
+                })()}
 
                 {/* Contribute Button */}
                 <button className="btn-primary" style={{ width: '100%', padding: '0.65rem' }} onClick={() => { setShowContribute(g); setContributeAmount(''); }}>

@@ -517,7 +517,7 @@ export const Vendas: React.FC<VendasProps> = ({
             ) : (
               <div>
                 {products.map((product, idx) => {
-                  const margin = product.selling_price && product.cost_price
+                  const margin = product.selling_price && product.selling_price > 0 && product.cost_price != null
                     ? ((product.selling_price - product.cost_price) / product.selling_price) * 100
                     : null;
                   return (

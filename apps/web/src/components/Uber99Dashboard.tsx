@@ -15,6 +15,10 @@ import {
   ChevronDown,
   Star,
   Zap,
+  Gauge,
+  Edit3,
+  Check,
+  Plus,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -45,6 +49,17 @@ interface Transaction {
 
 interface Uber99DashboardProps {
   transactions: Transaction[];
+  onCreateTransaction?: (body: any) => Promise<{ data: any; error: any }>;
+  categories?: Category[];
+  familyId?: string;
+  userId?: string;
+}
+
+interface FuelEntry {
+  date: string;
+  odometer: number;
+  liters: number;
+  kmL: number;
 }
 
 // ── Helpers ──────────────────────────────────────────────
@@ -57,6 +72,14 @@ const pct = (v: number) => `${v > 0 ? '+' : ''}${v}%`;
   export const Uber99Dashboard: React.FC<Uber99DashboardProps> = ({ transactions }) => {
   const [period, setPeriod] = useState<'Este mês' | 'Últimos 30 dias'>('Este mês');
   const [evoView, setEvoView] = useState<'Diário' | 'Semanal'>('Diário');
+  const [editingOdometer, setEditingOdometer] = useState(false);
+  const [odoInput, setOdoInput] = useState('');
+  const [showFuelForm, setShowFuelForm] = useState(false);
+  const [fuelOdoInput, setFuelOdoInput] = useState('');
+  const [fuelLitersInput, setFuelLitersInput] = useState('');
+  const [fuelAmountInput, setFuelAmountInput] = useState('');
+  const [fuelError, setFuelError] = useState('');
+  const [savingFuel, setSavingFuel] = useState(false);
 
   const rangeLabel = useMemo(() => {
     const now = new Date();
@@ -116,12 +139,29 @@ const pct = (v: number) => `${v > 0 ? '+' : ''}${v}%`;
       }
     });
 
+    // Conta corridas do mês e do mês anterior para estimar horas
+    let thisTrips = 0;
+    let prevTrips = 0;
+    uberTransactions.forEach((t) => {
+      if (t.type !== 'income') return;
+      const d = parseLocalDate(t.date);
+      if (!Number.isNaN(d.getTime())) {
+        const isThisMonth = d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        const isPrevMonth = d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+        if (isThisMonth) thisTrips++;
+        if (isPrevMonth) prevTrips++;
+      }
+    });
+
     const netIncome = grossIncome - costs;
     const prevNetIncome = prevGrossIncome - prevCosts;
-    const hoursWorked = Math.round(grossIncome / 48.57); // avg ~R$48.57/h
-    const prevHoursWorked = Math.round(prevGrossIncome / 48.57);
-    const daysWorked = Math.round(hoursWorked / 5.25); // ~5.25h/day avg
-    const prevDaysWorked = Math.round(prevHoursWorked / 5.25);
+    // Estimativa: cada corrida ~30min (0.5h). Dias = ceil(horas / 8)
+    const AVG_TRIP_HOURS = 0.5;
+    const HOURS_PER_DAY = 8;
+    const hoursWorked = Math.round(thisTrips * AVG_TRIP_HOURS);
+    const prevHoursWorked = Math.round(prevTrips * AVG_TRIP_HOURS);
+    const daysWorked = Math.max(1, Math.ceil(hoursWorked / HOURS_PER_DAY));
+    const prevDaysWorked = Math.max(1, Math.ceil(prevHoursWorked / HOURS_PER_DAY));
 
     const trend = (current: number, previous: number) => {
       if (previous <= 0) return 0;
@@ -134,6 +174,7 @@ const pct = (v: number) => `${v > 0 ? '+' : ''}${v}%`;
       costs,
       hoursWorked,
       daysWorked,
+      trips: thisTrips,
       netTrend: trend(netIncome, prevNetIncome),
       grossTrend: trend(grossIncome, prevGrossIncome),
       costTrend: trend(costs, prevCosts),
@@ -287,9 +328,26 @@ const pct = (v: number) => `${v > 0 ? '+' : ''}${v}%`;
       }
     });
 
+    // Estimativa de horas por plataforma (proporcional ao número de corridas)
+    const avgTripHours = 0.5;
+    const uberHours = uberTrips * avgTripHours;
+    const ninetyHours = ninetyTrips * avgTripHours;
+
     return {
-      uber: { income: uberIncome, trips: uberTrips, avgPerTrip: uberTrips > 0 ? uberIncome / uberTrips : 0 },
-      ninetyNine: { income: ninetyIncome, trips: ninetyTrips, avgPerTrip: ninetyTrips > 0 ? ninetyIncome / ninetyTrips : 0 },
+      uber: {
+        income: uberIncome,
+        trips: uberTrips,
+        hours: uberHours,
+        avgPerTrip: uberTrips > 0 ? uberIncome / uberTrips : 0,
+        avgPerHour: uberHours > 0 ? uberIncome / uberHours : 0,
+      },
+      ninetyNine: {
+        income: ninetyIncome,
+        trips: ninetyTrips,
+        hours: ninetyHours,
+        avgPerTrip: ninetyTrips > 0 ? ninetyIncome / ninetyTrips : 0,
+        avgPerHour: ninetyHours > 0 ? ninetyIncome / ninetyHours : 0,
+      },
     };
   }, [uberTransactions]);
 
@@ -598,10 +656,10 @@ const pct = (v: number) => `${v > 0 ? '+' : ''}${v}%`;
               <span>🚗 {quickPerf.uber.trips} corridas</span>
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              ⏱ ~{(kpis.hoursWorked * 0.57).toFixed(0)}h 20m
+              ⏱ ~{quickPerf.uber.hours.toFixed(0)}h estimadas
             </div>
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', marginTop: '0.25rem' }}>
-              R$ {quickPerf.uber.avgPerTrip.toFixed(2)} /h médio
+              R$ {quickPerf.uber.avgPerHour.toFixed(2)}/h · R$ {quickPerf.uber.avgPerTrip.toFixed(2)}/corrida
             </div>
           </div>
 
@@ -624,10 +682,10 @@ const pct = (v: number) => `${v > 0 ? '+' : ''}${v}%`;
               <span>🚗 {quickPerf.ninetyNine.trips} corridas</span>
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              ⏱ ~{(kpis.hoursWorked * 0.43).toFixed(0)}h 10m
+              ⏱ ~{quickPerf.ninetyNine.hours.toFixed(0)}h estimadas
             </div>
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#f59e0b', marginTop: '0.25rem' }}>
-              R$ {quickPerf.ninetyNine.avgPerTrip.toFixed(2)} /h médio
+              R$ {quickPerf.ninetyNine.avgPerHour.toFixed(2)}/h · R$ {quickPerf.ninetyNine.avgPerTrip.toFixed(2)}/corrida
             </div>
           </div>
 

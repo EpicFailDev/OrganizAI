@@ -376,6 +376,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       }
 
       const finalDescription = description.trim() || generatedDescription || 'Lançamento';
+      const odometerInput = smartMode === 'fuel' ? fuelOdometer : smartMode === 'uber' ? uberOdometer : '';
+      const odometerKm = parseNum(odometerInput) > 0 ? parseNum(odometerInput) : null;
       const { data: inserted, error: insertError } = await api.createTransaction({
         family_id: familyId,
         date,
@@ -385,7 +387,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         type,
         amount: cleanAmount,
         created_by: userId,
-        attachment_url: attachmentUrl || null
+        attachment_url: attachmentUrl || null,
+        odometer_km: odometerKm
       });
 
       if (insertError) throw insertError;
